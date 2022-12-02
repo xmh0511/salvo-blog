@@ -203,7 +203,7 @@ async fn main() {
             .hoop(AuthorGuard(true))
             .get(home::person_list),
     );
-    let router = router.push(Router::with_path("logout").get(home::logout));
+    let router = router.push(Router::with_path("test").get(home::test_duplicate));
 
     let router_static_asserts = Router::with_path("<**path>").get(
         StaticDir::new(["public"])

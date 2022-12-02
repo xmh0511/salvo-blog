@@ -335,6 +335,14 @@ ORDER BY
 }
 
 #[handler]
+pub async fn test_duplicate(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError>{
+    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let count = UserTb::find().filter(user_tb::Column::Name.eq("test2")).count(db).await?;
+    res.render(Text::Plain(count.to_string()));
+    Ok(())
+}
+
+#[handler]
 pub async fn author(req: &mut Request, res: &mut Response, depot: &mut Depot) {
     if let Some(session) = depot.session_mut() {
         let name = session.get::<String>("name");
