@@ -1,0 +1,261 @@
+﻿<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<base href="{{baseUrl}}" />
+	<meta http-equiv="Content-Type" content="text/html; Charset=utf-8">
+	<meta http-equiv="Content-Language" content="zh-CN">
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<title>Blog - 个人列表</title>
+	<script>
+		window.baseUrl = `{{baseUrl | safe}}`;
+		//console.log(window.baseUrl)
+	</script>
+	<!--Layui-->
+	<link href="{{baseUrl}}public/plug/layui/css/layui.css" rel="stylesheet" />
+	<!--font-awesome-->
+	<link href="{{baseUrl}}public/plug/font-awesome/css/font-awesome.min.css" rel="stylesheet" />
+	<!--全局样式表-->
+	<link href="{{baseUrl}}public/css/global.css" rel="stylesheet" />
+	<!-- 本页样式表 -->
+	<link href="{{baseUrl}}public/css/home.css" rel="stylesheet" />
+	<script type="text/javascript" src="{{baseUrl}}public/js/jquery-3.6.0.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl}}public/plug/layui/layui.js"></script>
+	<script type="text/javascript" src="{{baseUrl}}public/js/login.js"></script>
+</head>
+
+<body>
+	<!-- 导航 -->
+	<!-- 主体（一般只改变这里的内容） -->
+	<nav class="blog-nav layui-header">
+		<div class="blog-container">
+			<!-- QQ互联登陆 -->
+			<a href="javascript:;" class="blog-user layui-hide">
+				<img src="{{baseUrl}}public/images/Absolutely.jpg" alt="Absolutely" title="Absolutely" />
+			</a>
+			<!-- 不落阁 -->
+			<a class="blog-logo" href="{{baseUrl}}">Blog</a>
+			<!-- 导航菜单 -->
+
+			<!-- 手机和平板的导航开关 -->
+		</div>
+	</nav>
+	<div class="blog-body">
+		<!-- canvas -->
+		<canvas id="canvas-banner" style="background: #393D49;"></canvas>
+		<!--为了及时效果需要立即设置canvas宽高，否则就在home.js中设置-->
+		<script type="text/javascript">
+			var canvas = document.getElementById('canvas-banner');
+			canvas.width = window.document.body.clientWidth - 10;//减去滚动条的宽度
+			if (screen.width >= 992) {
+				canvas.height = window.innerHeight * 1 / 3;
+			} else {
+				canvas.height = window.innerHeight * 2 / 7;
+			}
+		</script>
+		<!-- 这个一般才是真正的主体内容 -->
+		<div class="blog-container">
+			<div class="blog-main">
+				<!-- 网站公告提示 -->
+				<div class="home-tips shadow">
+					<i style="float:left;line-height:17px;" class="fa fa-volume-up"></i>
+					<div class="home-tips-container">
+						<span style="color: #009688">my blog</span>
+					</div>
+				</div>
+				<!--左边文章列表-->
+				<div class="blog-main-left">
+					{% for item in articles %}
+					<div class="article shadow">
+						<div>
+							<a href="{{baseUrl}}article/{{item.AID}}">
+								<p>{{item.title}}</p>
+							</a>
+						</div>
+						<div class="clear"></div>
+						<div class="article-footer">
+							<span><i
+									class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time}}</span>
+							<span class="article-author"><i class="fa fa-user"></i>&nbsp;&nbsp;{{login.name}}</span>
+							<span><i class="fa fa-tag"></i>&nbsp;&nbsp;<a href="#">{{item.name}}</a></span>
+							<span><i class="layui-icon layui-icon-edit"></i>&nbsp;&nbsp;<a
+									href="./edit/{{item.AID}}">编辑</a></span>
+							{% if item.article_state == 0 %}
+							<span class="deleteButton" data-id="{{item.AID}}"><i
+									class="layui-icon layui-icon-delete"></i>&nbsp;&nbsp;删除</span>
+							{% else %}
+							<span class="deleteButton" data-id="{{item.AID}}"><i
+									class="layui-icon layui-icon-delete"></i>&nbsp;&nbsp;恢复</span>
+							{% endif %}
+							<span class="article-viewinfo"><i class="fa fa-eye"></i>&nbsp;{{item.view_count}}</span>
+							<span class="article-viewinfo"><i
+									class="fa fa-commenting"></i>&nbsp;{{item.comment_count}}</span>
+						</div>
+					</div>
+					{% endfor %}
+					<div id="pagination">
+
+					</div>
+				</div>
+				<!--右边小栏目-->
+				<div class="blog-main-right">
+					{% if login.login %}
+					<div class="blogerinfo shadow">
+						<div class="blogerinfo-figure">
+							{% if login.avatar == "" %}
+							<img id="avatarContainer" src="{{baseUrl}}public/images/Absolutely.jpg" alt="Absolutely" />
+							{% else %}
+							<img id="avatarContainer" src="{{login.avatar | safe }}" alt="Absolutely" />
+							{% endif %}
+						</div>
+						<div class="person-box">
+							<div class="person-box-item">
+								<p class="blogerinfo-nickname">{{login.name}}</p>
+								<p class="blogerinfo-introduce"><span>等级:</span>{{login.level}}</p>
+							</div>
+							<div class="person-box-item">
+								<p class="blogerinfo-nickname"><a href="./add"><button
+											class="layui-btn layui-btn-primary layui-border-blue">发帖</button></a></p>
+								<p><a href="./list/1"><span>帖子:</span>{{login.post_count}}</a></p>
+							</div>
+						</div>
+						<hr />
+					</div>
+					{% else %}
+					<div class="blogerinfo shadow">
+						<div class="blogerinfo-figure">
+							<button type="button" class="layui-btn layui-btn-normal" onclick="toLogin()">登录</button>
+						</div>
+					</div>
+					{% endif %}
+					<div></div>
+					<!--占位-->
+					<div class="blog-module shadow">
+						<div class="blog-module-title">热文排行</div>
+						<ul class="fa-ul blog-module-ul">
+							{% for item in hotArticles %}
+							<li><i class="fa-li fa fa-hand-o-right"></i><a
+									href="./article/{{item.id}}">{{item.title}}</a></li>
+							{% endfor %}
+						</ul>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</div>
+	</div>
+	<div class="mask-dialog">
+		<div class="login-wrapper-box layui-anim layui-anim-scale layui-hide">
+			<form class="layui-form">
+				<!--        <h2>FS 文件管理用户登录</h2>-->
+				<h2>用户登录</h2>
+				<div class="layui-form-item layui-input-icon-group">
+					<i class="layui-icon layui-icon-username"></i>
+					<input class="layui-input" id="email" name="nickName" placeholder="用户名" autocomplete="off"
+						lay-verType="tips" lay-verify="required" required />
+				</div>
+				<div class="layui-form-item layui-input-icon-group">
+					<i class="layui-icon layui-icon-password"></i>
+					<input class="layui-input" name="password" placeholder="请输入登录密码" type="password" lay-verType="tips"
+						lay-verify="required" required />
+				</div>
+				<div class="layui-form-item">
+					<input type="checkbox" name="remember" title="记住我" lay-skin="primary">
+					<a href="./register" class="layui-link pull-right">注册账号</a>
+				</div>
+				<div class="layui-form-item login-button-box">
+					<button class="layui-btn layui-btn-fluid" lay-filter="loginSubmit" lay-submit>登录</button>
+					<button class="layui-btn layui-btn-fluid layui-btn-primary" onclick="cancelBox()">取消</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- 底部 -->
+	<footer class="blog-footer">
+		<p><span>Copyright</span><span>&copy;</span><span>2022</span><a href="/">Blog</a><span>Design
+				By Deno</span></p>
+	</footer>
+
+	<!--遮罩-->
+	<div class="blog-mask animated layui-hide"></div>
+	<!-- layui.js -->
+	<script src="./public/plug/layui/layui.js"></script>
+	<!-- 全局脚本 -->
+	<script src="./public/js/global.js"></script>
+	<!-- 本页脚本 -->
+	<script src="./public/js/home.js"></script>
+</body>
+<script>
+	function toLogin() {
+		$(".login-wrapper-box").removeClass("layui-hide");
+	}
+	function cancelBox() {
+		$(".login-wrapper-box").addClass("layui-hide");
+	}
+</script>
+<script>
+	layui.use('laypage', function () {
+		var laypage = layui.laypage;
+		var layer = layui.layer;
+		//执行一个laypage实例
+		laypage.render({
+			elem: 'pagination', //注意，这里的 test1 是 ID，不用加 # 号
+			count: `{{ total }}`, //数据总数，从服务端得到
+			limit: 10,
+			curr:`{{page}}`,
+			jump: function (obj, first) {
+				if (!first) {
+					window.location.href = `{{baseUrl | safe}}./list/${obj.curr}`;
+				}
+			}
+		});
+
+		$(".deleteButton").off("click").on("click", function () {
+			var that = this;
+			let id = $(this).attr("data-id");
+			layer.confirm('确定执行该操作吗?', {
+				btn: ['确定', '取消'] //可以无限个按钮
+			}, function (index, layero) {
+				layer.load(2);
+				$.post(`./delete/${id}`, { id }, function (r) {
+					if (r.code === 200) {
+						layer.msg('提交成功', { icon: 1, time: 1500 }, function () {
+							window.location.reload();
+						})
+					} else {
+						layer.closeAll('loading');
+						layer.msg(r.msg, { icon: 5 });
+					}
+				})
+			}, function (index) {
+				//按钮【按钮二】的回调
+			});
+		});
+
+		$("#avatarContainer").off("click").on("click", function () {
+			console.log("click")
+			layer.open({
+				type: 2,
+				area: ['600px', '330px'],
+				content: [`{{baseUrl}}./personEdit`, 'no'], //这里content是一个URL，如果你不想让iframe出现滚动条，你还可以content: ['http://sentsin.com', 'no']
+				success: function (layero, index) {
+				}
+			});
+		})
+	});
+	window.requestRefresh = function(){
+		window.location.reload();
+	}
+</script>
+<style>
+	.deleteButton {
+		cursor: pointer;
+	}
+
+	#avatarContainer {
+		cursor: pointer;
+	}
+</style>
+
+</html>

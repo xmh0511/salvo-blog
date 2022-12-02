@@ -1,0 +1,4 @@
+{
+	"base_url":"/",
+	"database_url":"mysql://root:970252187@localhost/deno"
+}
