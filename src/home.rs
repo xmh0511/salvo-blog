@@ -192,7 +192,7 @@ pub async fn home(
                 })
             }
             _ => {
-                println!("no login");
+                //println!("no login");
                 json!({
                     "login":false,
 					"avatar":""
