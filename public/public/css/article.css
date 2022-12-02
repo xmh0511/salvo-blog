@@ -1,0 +1,159 @@
+﻿/*
+
+@Name：不落阁整站模板源码 
+@Author：Absolutely 
+@Site：http://www.lyblogs.cn
+
+*/
+
+/*搜索（移动端不提供此功能）*/
+.search-keywords,
+.search-submit {
+	display: none;
+}
+
+.article-subtitle {
+	text-align: right;
+	color: #d2d2d2;
+	margin-top: 10px;
+	font-size: 13px;
+}
+
+.article-subtitle span {
+	margin-right: 10px;
+}
+
+.article-content {
+	padding-top: 10px;
+}
+
+.article-subtitle i {
+	margin-right: 5px;
+}
+
+.comment-item {
+	background-color: white;
+	display: flex;
+	margin-bottom: 10px;
+}
+
+.comment-item .avator i {
+	margin-right: 5px;
+}
+
+.comment-item .avator img {
+	width: 100%;
+	margin-bottom: 10px;
+}
+
+.comment-item .avator {
+	width: 140px;
+	border-right: 1px dashed #e2e2e2;
+	padding: 10px 10px 10px 10px;
+}
+
+.avator-item {
+	margin-bottom: 10px;
+}
+
+.comment-content {
+	flex: 1;
+	position: relative;
+}
+
+.comment-inner-content {
+	position: absolute;
+	left: 0px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
+	display: flex;
+	flex-direction: column;
+}
+
+.comment-container {
+	height: 80%;
+	padding: 10px 10px 0 10px;
+}
+
+.comment-bar {
+	flex: 1;
+	padding-left: 10px;
+	border-top: 1px dashed #e2e2e2;
+	display: flex;
+	align-items: center;
+}
+.comment-bar span{
+  cursor: pointer;
+}
+
+.commentPoster {
+	width: 100%;
+	height: 320px;
+	margin-top: 10px;
+	display: flex;
+	align-items: center;
+	flex-direction: column;
+}
+
+.post-button {
+	width: 99%;
+	margin: 0 auto;
+}
+
+.post-button button {
+	width: 100%;
+}
+.comment-bar-item{
+	margin-right: 10px;
+}
+.editormd-html-preview{
+	box-sizing: border-box;
+}
+
+@media (min-width: 992px) {
+	.blog-search {
+		margin-bottom: 15px;
+	}
+
+	.search-keywords,
+	.search-submit {
+		display: inline-block;
+	}
+
+	.search-keywords {
+		width: 85%;
+		float: left;
+	}
+
+	.search-keywords>input {
+		border-radius: 0;
+	}
+
+	.search-submit {
+		width: 14%;
+		float: right;
+	}
+
+	.search-submit>.search-btn {
+		display: block;
+		width: 100%;
+		height: 36px;
+		background: #fff;
+		cursor: pointer;
+		float: right;
+		border-radius: 1px;
+		border: 1px solid #e2e2e2;
+	}
+
+	.search-submit>.search-btn:hover {
+		border: 1px solid #d2d2d2;
+	}
+
+	.search-submit>.search-btn i {
+		width: 13px;
+		line-height: 38px;
+		display: block;
+		margin: 0 auto;
+	}
+}
