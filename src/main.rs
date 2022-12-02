@@ -110,7 +110,9 @@ impl Handler for AuthorGuard {
                 }
                 ctrl.skip_rest();
             }
-            JwtAuthState::Forbidden => todo!(),
+            JwtAuthState::Forbidden => {
+                ctrl.skip_rest();
+            },
         }
     }
 }
@@ -121,6 +123,7 @@ async fn auth_guard(
     depot: &mut Depot,
     ctrl: &mut FlowCtrl,
 ) -> Result<(), UniformError> {
+    println!("------------------------auth guard");
     match depot.jwt_auth_state() {
         JwtAuthState::Authorized => {
             ctrl.call_next(req, depot, res).await;
