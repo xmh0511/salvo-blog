@@ -1,14 +1,14 @@
 mod database;
-use std::ops::Deref;
+
 
 use database::prelude::*;
-use salvo::http::request;
+
 use salvo::prelude::*;
-use sea_orm::{Database, DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, Statement, prelude::*};
+use sea_orm::{ DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, Statement, prelude::*};
 
-use serde_json::{json, Map};
+use serde_json::{json};
 
-use salvo::session::{CookieStore, Session, SessionDepotExt, SessionHandler};
+
 
 use self::database::{article_tb, comment_tb, tag_tb, user_tb, view_tb};
 
@@ -24,6 +24,19 @@ use chrono::prelude::*;
 
 
 use serde::{Deserialize, Serialize};
+
+
+macro_rules! construct_context {
+    ($($k:expr => $v:expr),+) => {
+        {
+            let mut context = Context::new();
+            $(context.insert($k,&$v);)+
+            context
+        }
+    };
+}
+
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JwtClaims {
     pub user_id: String,
@@ -32,8 +45,8 @@ pub struct JwtClaims {
 
 pub const SECRET_KEY: &str = "130ae5ac67bb6c7ecfe1f2924076964b130ae5ac67bb6c7ecfe1f2924076964b";
 
-const ResponseTextForError: u8 = 1;
-const ResponseJsonForError: u8 = 2;
+const RESPONSE_TEXT_FOR_ERROR: u8 = 1;
+const RESPONSE_JSON_FOR_ERROR: u8 = 2;
 
 #[derive(Debug)]
 pub struct UniformError<const ERRORCODE: u8 = 1>(anyhow::Error);
@@ -44,12 +57,25 @@ impl<const ERRORCODE: u8, T: Into<anyhow::Error>> From<T> for UniformError<ERROR
     }
 }
 
+fn show_just<T:Serialize>(v:&T){}
+
 #[async_trait]
 impl<const ERRORCODE: u8> Writer for UniformError<ERRORCODE> {
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn write(mut self, _req: &mut Request, depot: &mut Depot, res: &mut Response) {
+        let err = self.0.to_string();
         if ERRORCODE == 1 {
+            let Some(tera) = depot.get::<Tera>("tera") else{
+                res.with_status_code(StatusCode::BAD_REQUEST)
+                .render(Text::Plain(err));
+                return;
+            };
+            let default_url = "/".to_string();
+            let base_url = depot.get::<String>("base_url").unwrap_or(&default_url);
+            let context = construct_context!["code"=>404,"msg"=>err,"baseUrl"=>base_url];
+            let r = tera.render("404.html", &context).unwrap_or(err);
+
             res.with_status_code(StatusCode::BAD_REQUEST)
-                .render(Text::Plain(self.0.to_string()));
+                .render(Text::Html(r));
         } else {
             let r = json!({
                 "code":400,
@@ -74,7 +100,7 @@ impl<T> ConverOptionToResult<T> for Option<T> {
     }
 }
 /// Return UserTb::Model, TagTb::Model, view_count, comment_count
-async fn getRelativeInformationFromArticle(
+async fn get_relative_information_from_article(
     article_id: u64,
     user_id: u64,
     tag_id: u64,
@@ -99,7 +125,7 @@ async fn getRelativeInformationFromArticle(
     Ok((user, tag, count, comment_count))
 }
 
-async fn getHotArticleList(db: &DatabaseConnection) -> Result<Vec<JsonValue>, UniformError> {
+async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>, UniformError> {
     let r = ViewTb::find()
         .from_raw_sql(Statement::from_string(
             DatabaseBackend::MySql,
@@ -130,7 +156,7 @@ async fn getHotArticleList(db: &DatabaseConnection) -> Result<Vec<JsonValue>, Un
     Ok(r)
 }
 
-async fn getPersonRightState<const I: u8>(
+async fn get_person_right_state<const I: u8>(
     user_id: i32,
     db: &DatabaseConnection,
 ) -> Result<(user_tb::Model, u64), UniformError<I>> {
@@ -177,25 +203,30 @@ pub async fn home(
         let id = model.get("id").to_result()?.as_u64().to_result()?;
         let tag_id = model.get("tag_id").to_result()?.as_u64().to_result()?;
         let user_id = model.get("user_id").to_result()?.as_u64().to_result()?;
-        let result = getRelativeInformationFromArticle(id, user_id, tag_id, db).await?;
+        let result = get_relative_information_from_article(id, user_id, tag_id, db).await?;
         model["userName"] = json!(result.0.name);
         model["tagName"] = json!(result.1.name);
         model["read_count"] = json!(result.2);
         model["commentCount"] = json!(result.3);
     }
 
-    let hot_list = getHotArticleList(db).await?;
+    let hot_list = get_hot_article_list(db).await?;
     //println!("{data:?}");
     let mut context = Context::new();
     let base_url = depot.get::<String>("base_url").to_result()?;
     let total_page = ArticleTb::find().count(db).await?;
-    let login_data = {
+    let login_data = 'login_data:{
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
                 let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
-                let info =
-                    getPersonRightState(i32::from_str_radix(data.claims.user_id.as_str(), 10)?, db)
-                        .await?;
+                let Ok(info) =
+                    get_person_right_state::<RESPONSE_TEXT_FOR_ERROR>(i32::from_str_radix(data.claims.user_id.as_str(), 10)?, db)
+                        .await else{
+                           break 'login_data json!({
+                                "login":false,
+                                "avatar":""
+                            });
+                        };
                 let avatar = info.0.avatar.unwrap_or_default();
                 let username = info.0.name.unwrap_or_default();
                 let level = info.0.privilege.unwrap_or_default();
@@ -234,7 +265,7 @@ pub async fn login(
     req: &mut Request,
     res: &mut Response,
     depot: &mut Depot,
-) -> Result<(), UniformError<ResponseJsonForError>> {
+) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
     let pass = md5::compute(pass);
@@ -312,7 +343,7 @@ ORDER BY
         .into_json()
         .all(db)
         .await?;
-    let info = getPersonRightState(i32::from_str_radix(user_id.as_str(), 10)?, db).await?;
+    let info = get_person_right_state(i32::from_str_radix(user_id.as_str(), 10)?, db).await?;
     let avatar = info.0.avatar.unwrap_or_default();
     let username = info.0.name.unwrap_or_default();
     let level = info.0.privilege.unwrap_or_default();
@@ -328,7 +359,7 @@ ORDER BY
 	let total_count = ArticleTb::find().filter(article_tb::Column::UserId.eq(user_id)).count(db).await?;
     let mut context = Context::new();
 	let base_url = depot.get::<String>("base_url").to_result()?;
-	let hot_list = getHotArticleList(db).await?;
+	let hot_list = get_hot_article_list(db).await?;
     context.insert("articles", &r);
 	context.insert("login",&login_v);
 	context.insert("page", &(page+1));
@@ -342,7 +373,7 @@ ORDER BY
 }
 
 #[handler]
-pub async fn register(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError>{
+pub async fn register(_req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError>{
     let base_url = depot.get::<String>("base_url").to_result()?;
     let tera = depot.get::<Tera>("tera").to_result()?;
     let mut context = Context::new();
@@ -353,8 +384,7 @@ pub async fn register(req: &mut Request, res: &mut Response, depot: &mut Depot)-
 }
 
 #[handler]
-pub async fn post_register(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError<ResponseJsonForError>>{
-    println!("post_register---------");
+pub async fn post_register(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError<RESPONSE_JSON_FOR_ERROR>>{
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
     let confirm_pass = req.form::<String>("password2").await.to_result()?;
@@ -401,26 +431,38 @@ pub async fn post_register(req: &mut Request, res: &mut Response, depot: &mut De
 }
 
 #[handler]
-pub async fn author(req: &mut Request, res: &mut Response, depot: &mut Depot) {
-    if let Some(session) = depot.session_mut() {
-        let name = session.get::<String>("name");
-        //println!("{name:?}");
-        let val = format!("{:?}", name);
-
-        res.render(Text::Html(val));
-    } else {
-        res.with_status_code(StatusCode::BAD_GATEWAY)
-            .render("invalid user");
-    }
+pub async fn read_article(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError>{
+    let article_id:i32 = req.param("id").to_result()?;
+    println!("article id {article_id}");
+    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let article_model = ArticleTb::find_by_id(article_id).one(db).await?.to_result()?;
+    let need_level = article_model.level.unwrap_or(100);
+    let base_url = depot.get::<String>("base_url").to_result()?;
+    let tera = depot.get::<Tera>("tera").to_result()?;
+    match depot.jwt_auth_state() {
+        JwtAuthState::Authorized => {
+            let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
+            let user_id = &data.claims.user_id;
+            let person = UserTb::find_by_id(i32::from_str_radix(user_id, 10)?).one(db).await?.to_result()?;
+            if need_level <= person.privilege.unwrap_or(1) as i32{
+                res.render(Text::Plain("OK"));
+            }else{
+                let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                let r = tera.render("404.html", &context)?;
+                res.render(Text::Html(r));
+            }
+        },
+        JwtAuthState::Unauthorized => {
+            if need_level <= 1{
+                res.render(Text::Plain("OK"));
+            }else{
+                let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                let r = tera.render("404.html", &context)?;
+                res.render(Text::Html(r));
+            }
+        },
+        JwtAuthState::Forbidden => {},
+    };
+    Ok(())
 }
 
-#[handler]
-pub async fn logout(req: &mut Request, res: &mut Response, depot: &mut Depot) {
-    if let Some(session) = depot.session_mut() {
-        session.remove("name");
-        res.render("Success");
-    } else {
-        res.with_status_code(StatusCode::BAD_GATEWAY)
-            .render("session error");
-    }
-}
