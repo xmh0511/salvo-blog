@@ -335,10 +335,19 @@ ORDER BY
 }
 
 #[handler]
-pub async fn test_duplicate(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError>{
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
-    let count = UserTb::find().filter(user_tb::Column::Name.eq("test2")).count(db).await?;
-    res.render(Text::Plain(count.to_string()));
+pub async fn register(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError>{
+    let base_url = depot.get::<String>("base_url").to_result()?;
+    let tera = depot.get::<Tera>("tera").to_result()?;
+    if req.method() == salvo::http::Method::GET {
+        let mut context = Context::new();
+        context.insert("baseUrl",base_url);
+        let r = tera.render("reg.html", &context)?;
+        res.render(Text::Html(r));
+    }else{
+        let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+        let count = UserTb::find().filter(user_tb::Column::Name.eq("test2")).count(db).await?;
+        res.render(Text::Plain(count.to_string()));
+    }
     Ok(())
 }
 
