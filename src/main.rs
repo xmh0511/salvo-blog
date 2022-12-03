@@ -206,7 +206,7 @@ async fn main() {
             .hoop(AuthorGuard(true))
             .get(home::person_list),
     );
-    let router = router.push(Router::with_path("register").get(home::register)).post(home::register);
+    let router = router.push(Router::with_path("register").get(home::register).post(home::post_register));
 
     let router_static_asserts = Router::with_path("<**path>").get(
         StaticDir::new(["public"])

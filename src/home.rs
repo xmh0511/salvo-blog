@@ -4,7 +4,8 @@ use std::ops::Deref;
 use database::prelude::*;
 use salvo::http::request;
 use salvo::prelude::*;
-use sea_orm::{Database, DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, Statement};
+use sea_orm::{Database, DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, Statement, prelude::*};
+
 use serde_json::{json, Map};
 
 use salvo::session::{CookieStore, Session, SessionDepotExt, SessionHandler};
@@ -19,6 +20,8 @@ use tera::{Context, Tera};
 use time::{Duration, OffsetDateTime};
 
 use jsonwebtoken::{self, EncodingKey};
+use chrono::prelude::*;
+
 
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
@@ -139,6 +142,20 @@ async fn getPersonRightState<const I: u8>(
     Ok((info, post_count))
 }
 
+async fn generate_token_by_user_id<const I:u8>(user_id:i32)->Result<String,UniformError<I>>{
+    let exp = OffsetDateTime::now_utc() + Duration::days(1);
+    let claim = JwtClaims {
+        user_id: user_id.to_string(),
+        exp: exp.unix_timestamp(),
+    };
+    let token = jsonwebtoken::encode(
+        &jsonwebtoken::Header::default(),
+        &claim,
+        &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
+    )?;
+    Ok(token)
+}
+
 #[handler]
 pub async fn home(
     req: &mut Request,
@@ -234,17 +251,7 @@ pub async fn login(
 		 res.render(Text::Json(r.to_string()));
 		 return Ok(())
 	};
-    let exp = OffsetDateTime::now_utc() + Duration::days(1);
-    let user_id = r.id;
-    let claim = JwtClaims {
-        user_id: user_id.to_string(),
-        exp: exp.unix_timestamp(),
-    };
-    let token = jsonwebtoken::encode(
-        &jsonwebtoken::Header::default(),
-        &claim,
-        &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
-    )?;
+    let token = generate_token_by_user_id(r.id).await?;
     let r = json!({
        "code":200,
        "msg": "登录成功",
@@ -338,15 +345,57 @@ ORDER BY
 pub async fn register(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError>{
     let base_url = depot.get::<String>("base_url").to_result()?;
     let tera = depot.get::<Tera>("tera").to_result()?;
-    if req.method() == salvo::http::Method::GET {
-        let mut context = Context::new();
-        context.insert("baseUrl",base_url);
-        let r = tera.render("reg.html", &context)?;
-        res.render(Text::Html(r));
+    let mut context = Context::new();
+    context.insert("baseUrl",base_url);
+    let r = tera.render("reg.html", &context)?;
+    res.render(Text::Html(r));
+    Ok(())
+}
+
+#[handler]
+pub async fn post_register(req: &mut Request, res: &mut Response, depot: &mut Depot)->Result<(),UniformError<ResponseJsonForError>>{
+    println!("post_register---------");
+    let name = req.form::<String>("nickName").await.to_result()?;
+    let pass = req.form::<String>("password").await.to_result()?;
+    let confirm_pass = req.form::<String>("password2").await.to_result()?;
+    if pass != confirm_pass{
+        let r = json!({
+            "code":400,
+            "msg":"密码不一致"
+        });
+        res.render(Text::Json(r.to_string()));
+        return  Ok(());
     }else{
         let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
-        let count = UserTb::find().filter(user_tb::Column::Name.eq("test2")).count(db).await?;
-        res.render(Text::Plain(count.to_string()));
+        let count = UserTb::find().filter(user_tb::Column::Name.eq(name.clone())).count(db).await?;
+        if count!=0{
+            let r = json!({
+                "code":400,
+                "msg":"用户名已存在"
+            });
+            res.render(Text::Json(r.to_string()));
+            return  Ok(());
+        }else{
+           let mut add_user = user_tb::ActiveModel::new();
+           add_user.avatar = ActiveValue::set(None);
+           let time_now = Local::now();
+           add_user.create_time  = ActiveValue::set(Some(time_now.naive_local())); 
+           add_user.email  = ActiveValue::set(None); 
+           add_user.name  = ActiveValue::set(Some(name));
+           let pass = format!("{:?}",md5::compute(pass));
+           add_user.password = ActiveValue::set(Some(pass));
+           add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
+           add_user.privilege = ActiveValue::set(Some(1));
+           let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
+           let token = generate_token_by_user_id(r).await?;
+           let base_url = depot.get::<String>("base_url").to_result()?;
+           let r = json!({
+              "code":200,
+              "token":token,
+              "baseUrl":base_url
+           });
+           res.render(Text::Json(r.to_string()));
+        }
     }
     Ok(())
 }
