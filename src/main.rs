@@ -117,42 +117,7 @@ impl Handler for AuthorGuard {
     }
 }
 
-async fn auth_guard(
-    req: &mut Request,
-    res: &mut Response,
-    depot: &mut Depot,
-    ctrl: &mut FlowCtrl,
-) -> Result<(), UniformError> {
-    println!("------------------------auth guard");
-    match depot.jwt_auth_state() {
-        JwtAuthState::Authorized => {
-            ctrl.call_next(req, depot, res).await;
-        }
-        JwtAuthState::Unauthorized => {
-            if req.method() == salvo::http::Method::GET {
-                let base_url = depot.get::<String>("base_url").to_result()?;
-                let tera = depot.get::<Tera>("tera").to_result()?;
-                let mut context = Context::new();
-                context.insert("code", &404);
-                context.insert("msg", "没有权限执行此操作");
-                context.insert("baseUrl", &base_url);
-                let r = tera.render("404.html", &context)?;
-                res.render(Text::Html(r));
-            } else if req.method() == salvo::http::Method::POST {
-                let base_url = depot.get::<String>("base_url").to_result()?;
-                let r = json!({
-                    "code":400,
-                    "msg":"没有权限执行此操作",
-                    "baseUrl":base_url
-                });
-                res.render(Text::Json(r.to_string()))
-            }
-            ctrl.skip_rest();
-        }
-        JwtAuthState::Forbidden => todo!(),
-    }
-    Ok(())
-}
+
 
 #[tokio::main]
 async fn main() {
@@ -207,6 +172,8 @@ async fn main() {
             .get(home::person_list),
     );
     let router = router.push(Router::with_path("register").get(home::register).post(home::post_register));
+
+    let router = router.push(Router::with_path("article/<id>").get(home::read_article));
 
     let router_static_asserts = Router::with_path("<**path>").get(
         StaticDir::new(["public"])
