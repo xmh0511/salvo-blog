@@ -144,7 +144,7 @@
 				</div>
 				<div class="layui-form-item login-button-box">
 					<button class="layui-btn layui-btn-fluid" lay-filter="loginSubmit" lay-submit>登录</button>
-					<button class="layui-btn layui-btn-fluid layui-btn-primary" onclick="cancelBox()">取消</button>
+					<button class="layui-btn layui-btn-fluid layui-btn-primary" onclick="cancelBox(event)">取消</button>
 				</div>
 			</form>
 		</div>
@@ -168,7 +168,8 @@
 	function toLogin() {
 		$(".login-wrapper-box").removeClass("layui-hide");
 	}
-	function cancelBox() {
+	function cancelBox(e) {
+		e.preventDefault();
 		$(".login-wrapper-box").addClass("layui-hide");
 	}
 </script>

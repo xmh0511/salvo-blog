@@ -3,7 +3,6 @@ layui.use(['jquery', 'layer', 'form'], function () {
 	var layer = layui.layer;
 	var form = layui.form;
 
-	const baseUrl = "/blog/";
 
 
 	//$('.login-wrapper').removeClass('layui-hide');
@@ -24,7 +23,7 @@ layui.use(['jquery', 'layer', 'form'], function () {
 		obj.field.rememberMe = !!obj.field.remember;
 		layer.load(2);
 		console.log(obj.field);
-		$.post({url:'./login',headers:{"Content-type":"application/x-www-form-urlencoded"}}, obj.field, function (res) {
+		$.post({url:`${window.baseUrl}login`,headers:{"Content-type":"application/x-www-form-urlencoded"}}, obj.field, function (res) {
 			if (200 === res.code) {
 				console.log(res);
 				layer.msg('登录成功', { icon: 1, time: 1500 }, function () {
