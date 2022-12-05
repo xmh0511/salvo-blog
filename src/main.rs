@@ -175,6 +175,15 @@ async fn main() {
 
     let router = router.push(Router::with_path("article/<id>").get(home::read_article));
 
+	let router = router.push(Router::with_path("delcomment/<id>").hoop(AuthorGuard(false)).post(home::delete_comment));
+
+	let router = router.push(Router::with_path("commentedit/<id>").hoop(AuthorGuard(true)).get(home::edit_comment));
+	
+	let router = router.push(Router::with_path("editcomment/<id>").hoop(AuthorGuard(false)).post(home::save_edit_comment));
+
+	let router = router.push(Router::with_path("comment/<id>").hoop(AuthorGuard(false)).post(home::add_comment));
+	
+
     let router_static_asserts = Router::with_path("<**path>").get(
         StaticDir::new(["public"])
             .with_defaults("index.html")

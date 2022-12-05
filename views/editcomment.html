@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<base href="{{baseUrl | safe}}" />
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<title>发帖</title>
+	<script>
+		window.baseUrl = `{{baseUrl | safe }}`;
+	</script>
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/plug/layui/css/layui.css">
+
+	<link rel="stylesheet" href="{{baseUrl| safe}}public/markdown/css/editormd.min.css">
+	<link rel="stylesheet" href="{{baseUrl| safe}}public/markdown/css/editormd.preview.min.css">
+	<script type="text/javascript" src="{{baseUrl| safe}}public/plug/layui/layui.js"></script>
+</head>
+
+<body>
+	<div class="container">
+		<div class="wrapper-container">
+			<div id="content">
+				<textarea style="display:none;" value="">{{info.md_content | safe}}</textarea>
+			</div>
+		</div>
+		<div class="post-button">
+			<button id="postButton" type="button" class="layui-btn">提交</button>
+		</div>
+	</div>
+</body>
+<script type="text/javascript" src="{{baseUrl| safe}}public/js/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="{{baseUrl| safe}}public/markdown/editormd.min.js"></script>
+<script type="text/javascript">
+
+	var editor
+	$(function () {
+		editor = editormd("content", {
+			width: "100%",
+			height: "100%",
+			imageUpload: true,
+			imageUploadURL: "{{baseUrl| safe}}upload",
+			saveHTMLToTextarea: true,
+			// markdown: "xxxx",     // dynamic set Markdown text
+			path: "{{baseUrl | safe}}public/markdown/lib/"  // Autoload modules mode, codemirror, marked... dependents libs path
+		});
+	})
+	layui.use('layer', function () {
+		var layer = layui.layer;
+
+		$("#postButton").off("click").on("click", function () {
+			const content = editor.getHTML();
+			const md_content = editor.getMarkdown();
+			if (content === "" || md_content === "") {
+				layer.msg('内容为空');
+				return;
+			}
+			layer.load(2);
+			$.post({ url: "{{baseUrl | safe}}editcomment/{{info.id}}", headers: { "Content-type": "application/x-www-form-urlencoded" } }, { comment: content, md_content }, function (r) {
+				if (r.code === 200) {
+					layer.msg('提交成功', { icon: 1, time: 1500 }, function () {
+						window.parent.requestRefresh();
+					})
+				} else {
+					layer.closeAll('loading');
+					layer.msg(r.msg, { icon: 5 });
+				}
+			}, "JSON");
+		})
+	});
+</script>
+<style>
+	body {
+		width: 100%;
+	}
+
+	.container {
+		height: 100%;
+		background-color: rgba(0, 0, 0, .2);
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.post-button {
+		flex: 1;
+		margin-top: 5px;
+		width: 100%;
+	}
+
+	.post-button button {
+		width: 100%;
+	}
+
+	.wrapper-container {
+		width: 100%;
+		height: 340px;
+	}
+</style>
+
+</html>

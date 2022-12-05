@@ -63,7 +63,7 @@
 						<div class="clear"></div>
 						<div class="article-footer">
 							<span><i
-									class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time}}</span>
+									class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time | date(format="%Y-%m-%d %H:%M")}}</span>
 							<span class="article-author"><i class="fa fa-user"></i>&nbsp;&nbsp;{{item.userName}}</span>
 							<span><i class="fa fa-tag"></i>&nbsp;&nbsp;<a href="#">{{item.tagName}}</a></span>
 							<span class="article-viewinfo"><i class="fa fa-eye"></i>&nbsp;{{item.read_count}}</span>
@@ -150,10 +150,7 @@
 		</div>
 	</div>
 	<!-- 底部 -->
-	<footer class="blog-footer">
-		<p><span>Copyright</span><span>&copy;</span><span>2022</span><a href="/">Blog</a><span>Design
-				By Deno</span></p>
-	</footer>
+	{% include "footer.html" %}
 
 	<!--遮罩-->
 	<div class="blog-mask animated layui-hide"></div>
@@ -186,7 +183,7 @@
 			curr: `{{page}}`,
 			jump: function (obj, first) {
 				if (!first) {
-					window.location.href = `{{baseUrl}}./home/${obj.curr}`;
+					window.location.href = `{{baseUrl}}home/${obj.curr}`;
 				}
 			}
 		});
