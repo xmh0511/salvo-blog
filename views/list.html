@@ -35,7 +35,7 @@
 				<img src="{{baseUrl}}public/images/Absolutely.jpg" alt="Absolutely" title="Absolutely" />
 			</a>
 			<!-- 不落阁 -->
-			<a class="blog-logo" href="{{baseUrl}}">Blog</a>
+			<a class="blog-logo" href="{{baseUrl}}/home/1">Blog</a>
 			<!-- 导航菜单 -->
 
 			<!-- 手机和平板的导航开关 -->
@@ -76,7 +76,7 @@
 						<div class="clear"></div>
 						<div class="article-footer">
 							<span><i
-									class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time}}</span>
+									class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time | date(format="%Y-%m-%d %H:%M")}}</span>
 							<span class="article-author"><i class="fa fa-user"></i>&nbsp;&nbsp;{{login.name}}</span>
 							<span><i class="fa fa-tag"></i>&nbsp;&nbsp;<a href="#">{{item.name}}</a></span>
 							<span><i class="layui-icon layui-icon-edit"></i>&nbsp;&nbsp;<a
@@ -172,10 +172,7 @@
 		</div>
 	</div>
 	<!-- 底部 -->
-	<footer class="blog-footer">
-		<p><span>Copyright</span><span>&copy;</span><span>2022</span><a href="/">Blog</a><span>Design
-				By Deno</span></p>
-	</footer>
+	{% include "footer.html" %}
 
 	<!--遮罩-->
 	<div class="blog-mask animated layui-hide"></div>
