@@ -31,9 +31,6 @@
 	<nav class="blog-nav layui-header">
 		<div class="blog-container">
 			<!-- QQ互联登陆 -->
-			<a href="javascript:;" class="blog-user layui-hide">
-				<img src="{{baseUrl}}public/images/Absolutely.jpg" alt="Absolutely" title="Absolutely" />
-			</a>
 			<!-- 不落阁 -->
 			<a class="blog-logo" href="{{baseUrl}}/home/1">Blog</a>
 			<!-- 导航菜单 -->
@@ -104,9 +101,9 @@
 					<div class="blogerinfo shadow">
 						<div class="blogerinfo-figure">
 							{% if login.avatar == "" %}
-							<img id="avatarContainer" src="{{baseUrl}}public/images/Absolutely.jpg" alt="Absolutely" />
+							<img id="avatarContainer" src="{{baseUrl}}public/images/Absolutely.jpg" alt="avatar" />
 							{% else %}
-							<img id="avatarContainer" src="{{login.avatar | safe }}" alt="Absolutely" />
+							<img id="avatarContainer" src="{{login.avatar | safe }}" alt="avatar" />
 							{% endif %}
 						</div>
 						<div class="person-box">
