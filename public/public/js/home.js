@@ -216,7 +216,7 @@ function DrawCanvas(){
 	maxDistFromCursor = 50;
 	WIDTH = window.document.body.clientWidth;
 	if (screen.width >= 992) {
-		HEIGHT = window.innerHeight * 1 / 3;
+		HEIGHT = window.innerHeight * 1 / 2;
 	} else {
 		HEIGHT = window.innerHeight * 2 / 7;
 	}                  
@@ -396,7 +396,7 @@ function resizeCanvas() {
     var canvas = document.getElementById('canvas-banner');
 	canvas.width = window.document.body.clientWidth ;//减去滚动条的宽度
 	if (screen.width >= 992) {
-		canvas.height = window.innerHeight * 1 / 3;
+		canvas.height = window.innerHeight * 1 / 2;
 	} else {
 		canvas.height = window.innerHeight * 2 / 7;
 	}

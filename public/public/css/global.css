@@ -1154,10 +1154,12 @@ body {
 		opacity: 0;
 	}
 }
-.canvas-banner-container{
+
+.canvas-banner-container {
 	position: relative;
-	background: linear-gradient(to bottom,#000000 0%,#5788fe 100%);
+	background: linear-gradient(to bottom, #000000 0%, #5788fe 100%);
 }
+
 .canvas-filter {
 	width: 100%;
 	height: 100%;
@@ -1181,4 +1183,9 @@ body {
 	50% {
 		opacity: .9;
 	}
+}
+
+#canvas-banner {
+	background-repeat: no-repeat;
+	background-position: bottom;
 }
