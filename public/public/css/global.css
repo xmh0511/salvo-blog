@@ -1189,3 +1189,28 @@ body {
 	background-repeat: no-repeat;
 	background-position: bottom;
 }
+/* .go-to-home{
+	position: fixed;
+	right: 0px;
+	top:60%;
+	width:45px;
+	height:45px;
+	display: flex;
+	text-align: center;
+	align-items: center;
+	cursor: pointer;
+	justify-content: space-around;
+} */
+
+.list-operation-group{
+	display: flex;
+	justify-content: center;
+}
+.go-to-home{
+	margin-left: 5px;
+	display: flex;
+	align-items: flex-end;
+}
+.go-to-home a{
+	line-height: 32px;
+}

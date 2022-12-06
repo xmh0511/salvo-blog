@@ -111,9 +111,16 @@
 								<p class="blogerinfo-introduce"><span>等级:</span>{{login.level}}</p>
 							</div>
 							<div class="person-box-item">
-								<p class="blogerinfo-nickname"><a href="{{baseUrl}}add"><button
-											class="layui-btn layui-btn-primary layui-border-blue">发帖</button></a></p>
-								<p><a href="{{baseUrl}}list/1"><span>帖子:</span>{{login.post_count}}</a></p>
+								<div class="blogerinfo-nickname list-operation-group">
+									<a href="{{baseUrl}}add"><button class="layui-btn layui-btn-primary layui-border-blue">发帖</button></a>
+
+									<div class="go-to-home">
+										<a alt="回到主页" href="{{baseUrl}}home/1"><i class="layui-icon layui-icon-home" style="font-size: 38px;"></i></a>
+									</div>
+								</div>
+								<p>
+									<a href="{{baseUrl}}list/1"><span>帖子:</span>{{login.post_count}}</a>
+								</p>
 							</div>
 						</div>
 						<hr />

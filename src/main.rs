@@ -172,7 +172,7 @@ async fn main() {
         ])
         .with_response_error(false);
 
-    let router = Router::new().hoop(share_db!(db)).hoop(auth_handler);
+    let router = Router::new().hoop(share_db!(db)).hoop(auth_handler).get(home::home);
 
     let login_router = Router::with_path("login").post(home::login);
     let home_router = Router::with_path("home/<page>").get(home::home);
