@@ -82,7 +82,7 @@
 					<div class="blogerinfo shadow">
 						<div class="blogerinfo-figure">
 							{% if login.avatar == "" %}
-							<img id="avatarContainer" src="{{baseUrl}}public/images/Absolutely.jpg" alt="avatar" />
+							<img id="avatarContainer" src="{{baseUrl}}public/images/default.jpg" alt="avatar" />
 							{% else %}
 							<img id="avatarContainer" src="{{login.avatar | safe}}" alt="avatar" />
 							{% endif %}
@@ -140,7 +140,7 @@
 				</div>
 				<div class="layui-form-item">
 					<input type="checkbox" name="remember" title="记住我" lay-skin="primary">
-					<a href="/register" class="layui-link pull-right">注册账号</a>
+					<a href="{{baseUrl}}register" class="layui-link pull-right">注册账号</a>
 				</div>
 				<div class="layui-form-item login-button-box">
 					<button class="layui-btn layui-btn-fluid" lay-filter="loginSubmit" lay-submit>登录</button>
@@ -183,7 +183,7 @@
 			curr: `{{page}}`,
 			jump: function (obj, first) {
 				if (!first) {
-					window.location.href = `{{baseUrl}}home/${obj.curr}`;
+					window.location.href = `{{baseUrl | safe }}home/${obj.curr}`;
 				}
 			}
 		});

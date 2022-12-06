@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<base href="{{baseUrl}}" />
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<title>发帖</title>
+	<script>
+		window.baseUrl = `{{baseUrl | safe}}`;
+	</script>
+	<link rel="stylesheet" href="{{baseUrl}}public/plug/layui/css/layui.css">
+	<link rel="stylesheet" href="{{baseUrl}}public/markdown/css/editormd.min.css">
+	<link rel="stylesheet" href="{{baseUrl}}public/markdown/css/editormd.preview.min.css">
+	<link rel="stylesheet" href="{{baseUrl}}public/css/login.css">
+	<script type="text/javascript" src="{{baseUrl}}public/js/jquery-3.6.0.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl}}public/plug/layui/layui.js"></script>
+	<script type="text/javascript" src="{{baseUrl}}public/markdown/editormd.min.js"></script>
+</head>
+
+<body>
+	<div class="container">
+		<div class="create-context">
+			<div class="article-title">
+				<div class="layui-form">
+					<div class="inline-block-container">
+						<select name="tag" id="selectTag">
+							<option value="">标签</option>
+							{% for item in tags %}
+							<option {% if item.id == article.tag_id %} selected {% endif %} value="{{item.id}}">
+								{{item.name}}</option>
+							{% endfor %}
+						</select>
+					</div>
+				</div>
+				<div class="layui-form">
+					<div class="inline-block-container">
+						<select name="tag" id="selectLevel">
+							<option value="">阅读权限</option>
+							{% for item in levels %}
+							<option {% if item.level == article.level %} selected {% endif %}
+								value="{{item.level}}">{{item.name}}</option>
+							{% endfor %}
+						</select>
+					</div>
+				</div>
+				<div class="article-title-container">
+					<input value="{{article.title}}" id="articleTitle" type="text" name="title" required
+						lay-verify="required" placeholder="请输入标题" autocomplete="off" class="layui-input">
+				</div>
+			</div>
+			<div>
+				<div id="content">
+					<textarea style="display:none;">{{article.content | safe }}</textarea>
+				</div>
+			</div>
+			<div class="post-button">
+				<button id="postButton" type="button" class="layui-btn">提交</button>
+			</div>
+		</div>
+	</div>
+</body>
+<script type="text/javascript" src="{{baseUrl}}public/js/clipboard.min.js"></script>
+<script type="text/javascript">
+	var editor = editormd("content", {
+            width: "100%",
+            height: "100%",
+			imageUpload:true,
+			imageUploadURL:"{{baseUrl}}upload",
+            // markdown: "xxxx",     // dynamic set Markdown text
+            path : "{{baseUrl | safe }}public/markdown/lib/"  // Autoload modules mode, codemirror, marked... dependents libs path
+    });
+	layui.use('layer', function () {
+		var layer = layui.layer;
+
+		$("#postButton").off("click").on("click", function () {
+			console.log("eee");
+			const title = $("#articleTitle").val();
+			const tag = $("#selectTag").val();
+			const content = editor.getMarkdown();
+			const level = $("#selectLevel").val();
+			if (tag === "" || title === "" || content === "" || level === "") {
+				layer.msg('填写创作内容');
+				return;
+			}
+			layer.load(2);
+			$.post({url:`{{baseUrl | safe }}edit/{{article.id}}`,headers:{"Content-type": "application/x-www-form-urlencoded"}}, { tag, title, content, level }, function (r) {
+				if (r.code === 200) {
+					layer.msg('提交成功', { icon: 1, time: 1500 }, function () {
+						location.replace('{{baseUrl | safe }}list/1');
+					})
+				} else {
+					layer.closeAll('loading');
+					layer.msg(r.msg, { icon: 5 });
+				}
+			}, "JSON");
+		})
+	});
+</script>
+<style>
+	.container {
+		width: 100%;
+		min-height: 100vh;
+		background-color: rgba(0, 0, 0, .2);
+		padding-top: 10px;
+		box-sizing: border-box;
+	}
+	#content{
+		min-height: 500px;
+	}
+</style>
+
+</html>
