@@ -152,6 +152,7 @@ async fn main() {
 
     let base_url = json_v.get("base_url").unwrap().as_str().unwrap().to_owned();
     let database_url = json_v.get("database_url").unwrap().as_str().unwrap();
+	let bind_addr = json_v.get("bind_addr").unwrap().as_str().unwrap();
 
     let db = Database::connect(database_url).await;
     let Ok(db) = db else{
@@ -220,9 +221,9 @@ async fn main() {
         .push(router)
         .push(router_static_asserts);
 
-    tracing::info!("Listening on 0.0.0.0:8080");
+    tracing::info!("Listening on {}",bind_addr);
 
-    Server::new(TcpListener::bind("0.0.0.0:8080"))
+    Server::new(TcpListener::bind(bind_addr))
         .serve(root_router)
         .await;
 }
