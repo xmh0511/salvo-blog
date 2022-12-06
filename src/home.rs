@@ -498,6 +498,15 @@ WHERE
     Ok(r)
 }
 
+async fn increase_view_count(article_id:i32,db:&DatabaseConnection)->Result<(), UniformError>{
+	let mut model = view_tb::ActiveModel::new();
+	model.article_id = ActiveValue::set(Some(article_id));
+	let now = ActiveValue::set(Some(Local::now().naive_local()));
+	model.create_time = now.clone();
+	model.insert(db).await?;
+	Ok(())
+}
+
 #[handler]
 pub async fn read_article(
     req: &mut Request,
@@ -528,6 +537,7 @@ pub async fn read_article(
                 .await?
                 .to_result()?;
             if need_level <= person.privilege.unwrap_or(1) as u64 {
+				increase_view_count(article_id,db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
                 let currend_id = i32::from_str_radix(&data.claims.user_id, 10)?;
                 let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
@@ -541,6 +551,7 @@ pub async fn read_article(
         }
         JwtAuthState::Unauthorized => {
             if need_level <= 1 {
+				increase_view_count(article_id,db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
                 let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
                 let r = tera.render("article.html", &context)?;
