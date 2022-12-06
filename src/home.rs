@@ -51,7 +51,6 @@ impl<const ERRORCODE: u8, T: Into<anyhow::Error>> From<T> for UniformError<ERROR
     }
 }
 
-fn show_just<T: Serialize>(v: &T) {}
 
 #[async_trait]
 impl<const ERRORCODE: u8> Writer for UniformError<ERRORCODE> {
@@ -248,7 +247,7 @@ pub async fn home(
     context.insert("articles", &data);
     context.insert("total", &total_page);
     context.insert("commentCount", &10);
-    context.insert("page", &page);
+    context.insert("page", &(page+1));
     context.insert("hotArticles", &hot_list);
     let r = tera.render("home.html", &context)?;
     res.render(Text::Html(r));
@@ -645,7 +644,7 @@ pub async fn save_edit_comment(
 	.claims
 	.user_id;
     let identifier = identifier.as_str();
-	let tera = depot.get::<Tera>("tera").to_result()?;
+	//let tera = depot.get::<Tera>("tera").to_result()?;
 	let base_url = depot.get::<String>("base_url").to_result()?;
 	let model = CommentTb::find_by_id(comment_id).filter(comment_tb::Column::UserId.eq(identifier)).one(db).await?;
 	if let Some(x) = model{
@@ -698,5 +697,253 @@ pub async fn add_comment(
 		"code":200
 	});
 	res.render(Text::Json(r.to_string()));
+	Ok(())
+}
+
+#[handler]
+pub async fn upload(req: &mut Request, res: &mut Response)->Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
+    let file = req.file("editormd-image-file").await;
+    if let Some(file) = file {
+		let path = file.path();
+	    let file_name = path.file_name().to_result()?.to_str().to_result()?;
+        let dest = format!("./public/upload/{}", file_name);
+		let url = format!("upload/{}", file_name);
+	    let _ = std::fs::copy(path, dest.clone())?;
+		let r = json!({
+			"success":1,
+			"message":"",
+			"url":url
+		});
+		res.render(Text::Json(r.to_string()));
+    } else {
+        res.set_status_code(StatusCode::BAD_REQUEST);
+		let r = json!({
+			"success":0,
+			"message":"file not found in request",
+		});
+		res.render(Text::Json(r.to_string()));
+    };
+	Ok(())
+}
+
+#[handler]
+pub async fn render_add_article_view(
+	_req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+)->Result<(), UniformError>{
+	let base_url = depot.get::<String>("base_url").to_result()?;
+	let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+	let tags = TagTb::find().into_json().all(db).await?;
+	let levels = LevelTb::find().into_json().all(db).await?;
+	let context = construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url];
+	let tera = depot.get::<Tera>("tera").to_result()?;
+	let r = tera.render("add.html", &context)?;
+	res.render(Text::Html(r));
+	Ok(())
+}
+
+#[handler]
+pub async fn add_article(
+	req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+)->Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>>{
+	let tag = req.form::<i32>("tag").await.to_result()?;
+	let title = req.form::<String>("title").await.to_result()?;
+	let content = req.form::<String>("content").await.to_result()?;
+	let level = req.form::<i32>("level").await.to_result()?;
+	if title.len() == 0 || content.len() == 0{
+		let r = json!({
+			"code":404,
+			"msg":"填写完整信息"
+		});
+		res.render(Text::Json(r.to_string()));
+	}else{
+		let ref identifier = depot
+		.jwt_auth_data::<JwtClaims>()
+		.to_result()?
+		.claims
+		.user_id;
+		let identifier = identifier.as_str();
+		let base_url = depot.get::<String>("base_url").to_result()?;
+		let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+		let mut model = article_tb::ActiveModel::new();
+		model.article_state = ActiveValue::set(Some(1));
+		model.content = ActiveValue::set(Some(content));
+		let now = ActiveValue::set(Some(Local::now().naive_local()));
+		model.create_time = now.clone();
+		model.level = ActiveValue::set(Some(level));
+		model.tag_id = ActiveValue::set(Some(tag));
+		model.title = ActiveValue::set(Some(title));
+		model.update_time = now;
+		model.user_id = ActiveValue::set(Some(i32::from_str_radix(identifier, 10)?));
+		model.insert(db).await?;
+		let r = json!({
+			"code":200,
+			"baseUrl":base_url
+		});
+		res.render(Text::Json(r.to_string()));
+	}
+	Ok(())
+}
+
+#[handler]
+pub async fn render_article_edit_view(
+	req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+)->Result<(), UniformError>{
+
+	let article_id = req.param::<i32>("id").to_result()?;
+
+	let ref identifier = depot
+	.jwt_auth_data::<JwtClaims>()
+	.to_result()?
+	.claims
+	.user_id;
+
+	let identifier = identifier.as_str();
+
+	let base_url = depot.get::<String>("base_url").to_result()?;
+
+	let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+
+	let model = ArticleTb::find_by_id(article_id).filter(article_tb::Column::UserId.eq(identifier)).into_json().one(db).await?.to_result()?;
+
+	let tags = TagTb::find().into_json().all(db).await?;
+	let levels = LevelTb::find().into_json().all(db).await?;
+	let context = construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url,"article"=>model];
+	let tera = depot.get::<Tera>("tera").to_result()?;
+	let r = tera.render("edit.html", &context)?;
+	res.render(Text::Html(r));
+	Ok(())
+}
+
+#[handler]
+pub async fn edit_article(
+	req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+)->Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>>{
+	let article_id = req.param::<i32>("id").to_result()?;
+
+	let ref identifier = depot
+	.jwt_auth_data::<JwtClaims>()
+	.to_result()?
+	.claims
+	.user_id;
+	let base_url = depot.get::<String>("base_url").to_result()?;
+
+	let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+	let model = ArticleTb::find_by_id(article_id).filter(article_tb::Column::UserId.eq(identifier.as_str())).one(db).await?.to_result()?;
+	let mut model = article_tb::ActiveModel::from(model);
+	let tag = req.form::<i32>("tag").await.to_result()?;
+	let title = req.form::<String>("title").await.to_result()?;
+	let content = req.form::<String>("content").await.to_result()?;
+	let level = req.form::<i32>("level").await.to_result()?;
+	model.tag_id = ActiveValue::set(Some(tag));
+	model.title = ActiveValue::set(Some(title));
+	model.content = ActiveValue::set(Some(content));
+	model.level = ActiveValue::set(Some(level));
+	model.update_time = ActiveValue::set(Some(Local::now().naive_local()));
+	model.update(db).await?;
+	let r = json!({
+		"code":200,
+		"baseUrl":base_url
+	});
+	res.render(Text::Json(r.to_string()));
+	Ok(())
+}
+
+#[handler]
+pub async fn shadow_article(
+	req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+)->Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>>{
+	let article_id = req.param::<i32>("id").to_result()?;
+
+	let ref identifier = depot
+	.jwt_auth_data::<JwtClaims>()
+	.to_result()?
+	.claims
+	.user_id;
+	let base_url = depot.get::<String>("base_url").to_result()?;
+	let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+	let model = ArticleTb::find_by_id(article_id).filter(article_tb::Column::UserId.eq(identifier.as_str())).one(db).await?.to_result()?;
+	let state = model.article_state.unwrap_or(1);
+	let mut model = article_tb::ActiveModel::from(model);
+	model.article_state = {
+		if state == 1{
+			ActiveValue::set(Some(0))
+		}else{
+			ActiveValue::set(Some(1))
+		}
+	};
+	model.update_time = ActiveValue::set(Some(Local::now().naive_local()));
+	model.update(db).await?;
+	let r = json!({
+		"code":200,
+		"baseUrl":base_url
+	});
+	res.render(Text::Json(r.to_string()));
+	Ok(())
+}
+
+#[handler]
+pub async fn render_profile_view(
+	_req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+)->Result<(), UniformError>{
+	let ref identifier = depot
+	.jwt_auth_data::<JwtClaims>()
+	.to_result()?
+	.claims
+	.user_id;
+	let base_url = depot.get::<String>("base_url").to_result()?;
+	let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+	let model = UserTb::find_by_id(i32::from_str_radix(identifier.as_str(), 10)?).into_json().one(db).await?.to_result()?;
+	let context = construct_context!["info"=>model,"baseUrl"=>base_url];
+	let tera = depot.get::<Tera>("tera").to_result()?;
+	let r = tera.render("person.html", &context)?;
+	res.render(Text::Html(r));
+	Ok(())
+}
+
+#[handler]
+pub async fn edit_profile(
+	req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+)->Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>>{
+	let ref identifier = depot
+	.jwt_auth_data::<JwtClaims>()
+	.to_result()?
+	.claims
+	.user_id;
+	let avatar = req.form::<String>("path").await.to_result()?;
+	let base_url = depot.get::<String>("base_url").to_result()?;
+	if avatar.len() == 0{
+		let r = json!({
+			"code":404,
+			"msg":"填写完整信息",
+			"baseUrl":base_url
+		});
+		res.render(Text::Json(r.to_string()));
+	}else{
+		let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+		let model = UserTb::find_by_id(i32::from_str_radix(identifier.as_str(), 10)?).one(db).await?.to_result()?;
+		let mut model = user_tb::ActiveModel::from(model);
+		model.avatar = ActiveValue::set(Some(avatar));
+		model.update_time = ActiveValue::set(Some(Local::now().naive_local()));
+		model.update(db).await?;
+		let r = json!({
+			"code":200,
+			"baseUrl":base_url
+		});
+		res.render(Text::Json(r.to_string()));
+	}
 	Ok(())
 }
