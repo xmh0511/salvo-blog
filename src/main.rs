@@ -15,7 +15,6 @@ use home::SECRET_KEY;
 
 use home::JwtClaims;
 
-
 macro_rules! share_db {
     ($id:ident) => {
         InjectDbConnection($id.clone())
@@ -71,8 +70,6 @@ impl Handler for TemplateEngineInjection {
     }
 }
 
-
-
 #[derive(Clone)]
 struct AuthorGuardByMethod;
 #[async_trait]
@@ -89,15 +86,18 @@ impl Handler for AuthorGuardByMethod {
                 ctrl.call_next(req, depot, res).await;
             }
             JwtAuthState::Unauthorized => {
-				let http_method = req.method() ;
-                if http_method == salvo::http::Method::GET { // response html
+                let http_method = req.method();
+                if http_method == salvo::http::Method::GET {
+                    // response html
                     let base_url = depot.get::<String>("base_url").unwrap();
                     let tera = depot.get::<Tera>("tera").unwrap();
                     let mut context = Context::new();
                     context.insert("code", &404);
                     context.insert("msg", "没有权限执行此操作");
                     context.insert("baseUrl", &base_url);
-                    let r = tera.render("404.html", &context).unwrap_or(String::from("error"));
+                    let r = tera
+                        .render("404.html", &context)
+                        .unwrap_or(String::from("error"));
                     res.render(Text::Html(r));
                 } else if http_method == salvo::http::Method::POST {
                     let base_url = depot.get::<String>("base_url").unwrap();
@@ -105,8 +105,8 @@ impl Handler for AuthorGuardByMethod {
                         "code":400,
                         "msg":"没有权限执行此操作",
                         "baseUrl":base_url,
-						"success":0,
-						"message":"没有权限执行此操作",
+                        "success":0,
+                        "message":"没有权限执行此操作",
                     });
                     res.render(Text::Json(r.to_string()))
                 }
@@ -114,25 +114,38 @@ impl Handler for AuthorGuardByMethod {
             }
             JwtAuthState::Forbidden => {
                 ctrl.skip_rest();
-            },
+            }
         }
     }
 }
 
-
+struct IsNullFilter;
+impl tera::Filter for IsNullFilter {
+    fn filter(
+        &self,
+        value: &sea_orm::JsonValue,
+        _args: &std::collections::HashMap<String, sea_orm::JsonValue>,
+    ) -> tera::Result<sea_orm::JsonValue> {
+        if value.is_null() {
+            Ok(json!(true))
+        } else {
+            Ok(json!(false))
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
 
-	match fs::create_dir("./public/upload").await{
-		Ok(_) => {},
-		Err(e) => {
-			if e.kind() != std::io::ErrorKind::AlreadyExists{
-				panic!("fail to create upload directory");
-			}
-		},
-	};
+    match fs::create_dir("./public/upload").await {
+        Ok(_) => {}
+        Err(e) => {
+            if e.kind() != std::io::ErrorKind::AlreadyExists {
+                panic!("fail to create upload directory");
+            }
+        }
+    };
 
     let Ok(stream) = fs::read("./config.json").await else{
 		panic!("fail to read config file");
@@ -152,17 +165,19 @@ async fn main() {
 
     let base_url = json_v.get("base_url").unwrap().as_str().unwrap().to_owned();
     let database_url = json_v.get("database_url").unwrap().as_str().unwrap();
-	let bind_addr = json_v.get("bind_addr").unwrap().as_str().unwrap();
+    let bind_addr = json_v.get("bind_addr").unwrap().as_str().unwrap();
 
     let db = Database::connect(database_url).await;
     let Ok(db) = db else{
 		panic!("db init error");
 	};
 
-    let tera = match Tera::new("views/**/*.html") {
+    let mut tera = match Tera::new("views/**/*.html") {
         Ok(tera) => tera,
         Err(e) => panic!("{}", e.to_string()),
     };
+
+    tera.register_filter("is_null", IsNullFilter);
 
     let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(SECRET_KEY.to_owned())
         .with_finders(vec![
@@ -172,7 +187,10 @@ async fn main() {
         ])
         .with_response_error(false);
 
-    let router = Router::new().hoop(share_db!(db)).hoop(auth_handler).get(home::home);
+    let router = Router::new()
+        .hoop(share_db!(db))
+        .hoop(auth_handler)
+        .get(home::home);
 
     let login_router = Router::with_path("login").post(home::login);
     let home_router = Router::with_path("home/<page>").get(home::home);
@@ -183,27 +201,64 @@ async fn main() {
             .hoop(AuthorGuardByMethod)
             .get(home::person_list),
     );
-    let router = router.push(Router::with_path("register").get(home::register).post(home::post_register));
+    let router = router.push(
+        Router::with_path("register")
+            .get(home::register)
+            .post(home::post_register),
+    );
 
     let router = router.push(Router::with_path("article/<id>").get(home::read_article));
 
-	let router = router.push(Router::with_path("add").hoop(AuthorGuardByMethod).get(home::render_add_article_view).post(home::add_article));
+    let router = router.push(
+        Router::with_path("add")
+            .hoop(AuthorGuardByMethod)
+            .get(home::render_add_article_view)
+            .post(home::add_article),
+    );
 
-	let router = router.push(Router::with_path("edit/<id>").hoop(AuthorGuardByMethod).get(home::render_article_edit_view).post(home::edit_article));
+    let router = router.push(
+        Router::with_path("edit/<id>")
+            .hoop(AuthorGuardByMethod)
+            .get(home::render_article_edit_view)
+            .post(home::edit_article),
+    );
 
-	let router = router.push(Router::with_path("delete/<id>").hoop(AuthorGuardByMethod).post(home::shadow_article));
+    let router = router.push(
+        Router::with_path("delete/<id>")
+            .hoop(AuthorGuardByMethod)
+            .post(home::shadow_article),
+    );
 
-	let router = router.push(Router::with_path("delcomment/<id>").hoop(AuthorGuardByMethod).post(home::delete_comment));
+    let router = router.push(
+        Router::with_path("delcomment/<id>")
+            .hoop(AuthorGuardByMethod)
+            .post(home::delete_comment),
+    );
 
-	let router = router.push(Router::with_path("commentedit/<id>").hoop(AuthorGuardByMethod).get(home::edit_comment));
-	
-	let router = router.push(Router::with_path("editcomment/<id>").hoop(AuthorGuardByMethod).post(home::save_edit_comment));
+    let router = router.push(
+        Router::with_path("commentedit/<id>")
+            .hoop(AuthorGuardByMethod)
+            .get(home::edit_comment),
+    );
 
-	let router = router.push(Router::with_path("comment/<id>").hoop(AuthorGuardByMethod).post(home::add_comment));
+    let router = router.push(
+        Router::with_path("editcomment/<id>")
+            .hoop(AuthorGuardByMethod)
+            .post(home::save_edit_comment),
+    );
 
-	let router = router.push(Router::with_path("profile").hoop(AuthorGuardByMethod).get(home::render_profile_view).post(home::edit_profile));
+    let router = router.push(
+        Router::with_path("comment/<id>")
+            .hoop(AuthorGuardByMethod)
+            .post(home::add_comment),
+    );
 
-
+    let router = router.push(
+        Router::with_path("profile")
+            .hoop(AuthorGuardByMethod)
+            .get(home::render_profile_view)
+            .post(home::edit_profile),
+    );
 
     let router_static_asserts = Router::with_path("<**path>").get(
         StaticDir::new(["public"])
@@ -211,9 +266,11 @@ async fn main() {
             .with_listing(true),
     );
 
-	let upload_router = Router::with_path("upload").hoop(AuthorGuardByMethod).post(home::upload);
+    let upload_router = Router::with_path("upload")
+        .hoop(AuthorGuardByMethod)
+        .post(home::upload);
 
-	let router = router.push(upload_router);
+    let router = router.push(upload_router);
 
     let root_router = Router::new()
         .hoop(TemplateEngineInjection(tera))
@@ -221,7 +278,7 @@ async fn main() {
         .push(router)
         .push(router_static_asserts);
 
-    tracing::info!("Listening on {}",bind_addr);
+    tracing::info!("Listening on {}", bind_addr);
 
     Server::new(TcpListener::bind(bind_addr))
         .serve(root_router)
