@@ -298,6 +298,7 @@ pub async fn person_list(
     let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
     let user_id = data.claims.user_id.clone();
     let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+	let offset = page * 10;
     let sql = format!(
         r#"SELECT
 	R.AID,
@@ -330,7 +331,7 @@ GROUP BY
 	AID 
 ORDER BY
 	R.update_time DESC
-	LIMIT {page}, 10"#
+	LIMIT {offset}, 10"#
     );
     let r = ArticleTb::find()
         .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql))
