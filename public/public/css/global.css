@@ -1231,3 +1231,6 @@ body {
 .layui-laypage a:hover{
 	color: #1E9FFF !important;
 }
+.layui-breadcrumb a:hover{
+	color:#1E9FFF !important;
+}
