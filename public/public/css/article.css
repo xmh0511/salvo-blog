@@ -35,6 +35,7 @@
 	background-color: white;
 	display: flex;
 	margin-bottom: 10px;
+	height:200px;
 }
 
 .comment-item .avator i {
@@ -42,7 +43,8 @@
 }
 
 .comment-item .avator img {
-	width: 100%;
+	width: 100px;
+	height:100px;
 	margin-bottom: 10px;
 }
 
