@@ -1158,6 +1158,7 @@ body {
 .canvas-banner-container {
 	position: relative;
 	background: linear-gradient(to bottom, #000000 0%, #5788fe 100%);
+	display: flex;
 }
 
 .canvas-filter {
