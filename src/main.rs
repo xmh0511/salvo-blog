@@ -136,7 +136,7 @@ impl tera::Filter for IsNullFilter {
 
 #[tokio::main]
 async fn main() {
-    //tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt().init();
 
     match fs::create_dir("./public/upload").await {
         Ok(_) => {}
@@ -278,7 +278,7 @@ async fn main() {
         .push(router)
         .push(router_static_asserts);
 
-    //tracing::info!("Listening on {}", bind_addr);
+    tracing::info!("Listening on {}", bind_addr);
 
     Server::new(TcpListener::bind(bind_addr))
         .serve(root_router)

@@ -162,6 +162,7 @@ async fn get_person_right_state<const I: u8>(
 }
 
 async fn generate_token_by_user_id<const I: u8>(user_id: i32,remember:bool) -> Result<String, UniformError<I>> {
+    //println!("{remember}");
     let exp = OffsetDateTime::now_utc() + Duration::days(if remember{30}else{1});
     let claim = JwtClaims {
         user_id: user_id.to_string(),
@@ -293,6 +294,7 @@ pub async fn login(
 		 return Ok(())
 	};
 	let remember = if remember_me.trim() =="true"{ true}else{false};
+    //println!("login api invoke");
     let token = generate_token_by_user_id(r.id,remember ).await?;
     let r = json!({
        "code":200,
