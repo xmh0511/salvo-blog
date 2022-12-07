@@ -1189,7 +1189,7 @@ body {
 #canvas-banner {
 	background-repeat: no-repeat;
 	background-position: bottom;
-	background-size: 100%;
+	background-size: 100% 68%;
 }
 /* .go-to-home{
 	position: fixed;
