@@ -1243,3 +1243,17 @@ body {
 .layui-btn-primary:hover{
 	border-color: #1E9FFF !important;
 }
+
+.layui-form-checked[lay-skin="primary"] i {
+	border-color: #1E9FFF !important;
+	background-color: #1E9FFF;
+	color: #fff;
+}
+
+.layui-form-checkbox[lay-skin="primary"]:hover i {
+	border-color: #1E9FFF;
+	color: #fff;
+}
+.login-operation-group .layui-form-checkbox{
+	margin-top: 0px !important;
+}
