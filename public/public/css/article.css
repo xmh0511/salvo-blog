@@ -61,6 +61,7 @@
 .comment-content {
 	flex: 1;
 	position: relative;
+	height: 260px;
 }
 
 .comment-inner-content {
@@ -73,8 +74,8 @@
 	flex-direction: column;
 }
 
-.comment-container {
-	height: 80%;
+.comment-item .comment-content .comment-inner-content .comment-container {
+	height: 230px;
 	padding: 10px 10px 0 10px;
 }
 
