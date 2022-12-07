@@ -190,7 +190,7 @@ body {
 	position: fixed;
 	top: 0;
 	background-color: #393D49;
-	border-bottom: 1px solid #5FB878;
+	border-bottom: 1px solid #4b9ef7;
 }
 
 .blog-nav .layui-nav {
@@ -297,7 +297,7 @@ body {
 /*网站底部*/
 .blog-footer {
 	text-align: center;
-	border-top: 1px solid #009688;
+	border-top: 1px solid #4b9ef7;
 	margin-top: 15px;
 	background: #2F4056;
 	padding: 5px 0;
