@@ -123,7 +123,7 @@
 						<ul class="fa-ul blog-module-ul">
 							{% for item in hotArticles %}
 							<li><i class="fa-li fa fa-hand-o-right"></i><a
-									href="./article/{{item.id}}">{{item.title}}</a></li>
+									href="{{baseUrl}}article/{{item.id}}">{{item.title}}</a></li>
 							{% endfor %}
 						</ul>
 					</div>
@@ -152,7 +152,7 @@
 					<a href="{{baseUrl}}register" class="layui-link pull-right">注册账号</a>
 				</div>
 				<div class="layui-form-item login-button-box">
-					<button class="layui-btn layui-btn-fluid" lay-filter="loginSubmit" lay-submit>登录</button>
+					<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="loginSubmit" lay-submit>登录</button>
 					<button class="layui-btn layui-btn-fluid layui-btn-primary" onclick="cancelBox(event)">取消</button>
 				</div>
 			</form>
