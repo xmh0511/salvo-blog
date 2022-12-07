@@ -1240,3 +1240,6 @@ body {
 .layui-form-select dl dd.layui-this{
 	background-color: #1E9FFF !important;
 }
+.layui-btn-primary:hover{
+	border-color: #1E9FFF !important;
+}
