@@ -28,7 +28,7 @@ layui.use(['jquery', 'layer', 'form'], function () {
 				console.log(res);
 				layer.msg('登录成功', { icon: 1, time: 1500 }, function () {
 					if (obj.field.rememberMe === true) {
-						document.cookie = `token=${res.token};expires=${new Date(new Date().setDate(new Date().getDate() + 10)).toUTCString()};Path=${res.baseUrl}`;
+						document.cookie = `token=${res.token};expires=${new Date(new Date().setDate(new Date().getDate() + 30)).toUTCString()};Path=${res.baseUrl}`;
 					} else {
 						document.cookie = `token=${res.token};Path=${res.baseUrl}`;
 					}
@@ -52,7 +52,7 @@ layui.use(['jquery', 'layer', 'form'], function () {
 				//console.log(res);
 				layer.msg(res.msg, { icon: 1, time: 1500 }, function () {
 					//console.log("abc:", `token=${res.token};expires=${new Date(new Date().setDate(new Date().getDate() + 10)).toUTCString()}`);
-					document.cookie = `token=${res.token};expires=${new Date(new Date().setDate(new Date().getDate() + 10)).toUTCString()};Path=${res.baseUrl}`;
+					document.cookie = `token=${res.token};expires=${new Date(new Date().setDate(new Date().getDate() + 30)).toUTCString()};Path=${res.baseUrl}`;
 					location.replace(`${window.baseUrl}home/1`);
 				});
 			} else {
