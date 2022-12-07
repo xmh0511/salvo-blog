@@ -54,10 +54,11 @@ body {
 	background: #fff;
 	font-size: 13px;
 	margin-bottom: 15px;
+	color: #4b9ef7;
 }
 
 .blog-main>.home-tips>i {
-	color: #009688;
+	color: #4b9ef7;
 	font-size: 15px;
 }
 
@@ -482,7 +483,7 @@ body {
 }
 
 .article:hover {
-	border-left: 5px solid #009688;
+	border-left: 5px solid #4b9ef7;
 	-moz-transition: all 0.3s linear;
 	-o-transition: all 0.3s linear;
 	-webkit-transition: all 0.3s linear;
@@ -529,7 +530,7 @@ body {
 }
 
 .article>.article-footer a {
-	color: #009688;
+	color: #4b9ef7;
 }
 
 .article>.article-footer .article-viewinfo,
@@ -614,7 +615,7 @@ body {
 }
 
 .blog-module-ul li .fa {
-	color: #009688;
+	color: #4b9ef7;
 }
 
 /*右侧模块END*/
@@ -1223,4 +1224,10 @@ body {
 }
 .post-counter{
 	font-size: 18px;
+}
+.layui-laypage .layui-laypage-curr .layui-laypage-em{
+	background-color: #4b9ef7 !important;
+}
+.layui-laypage a:hover{
+	color: #4b9ef7 !important;
 }
