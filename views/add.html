@@ -94,6 +94,13 @@
 			}, "JSON");
 		})
 	});
+	$(function(){
+		setTimeout(()=>{
+			let resizeEvent = document.createEvent('Event')
+			resizeEvent.initEvent('resize', true, true)
+			window.dispatchEvent(resizeEvent)
+		},20);
+	})
 </script>
 <style>
 	.container {
