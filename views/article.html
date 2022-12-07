@@ -77,10 +77,10 @@
 					{% for item in comments %}
 					<div class="comment-item">
 						<div class="avator">
-							{% if item.avatar == "" %}
+							{% if item.avatar == "" or item.avatar | is_null %}
 							<div><img src="{{baseUrl}}public/images/Absolutely.jpg" /></div>
 							{% else %}
-							<div><img src="{{item.avatar}}" /></div>
+							<div><img src="{{baseUrl}}{{item.avatar | safe }}" /></div>
 							{% endif %}
 							<div>
 								<div class="avator-item">
@@ -96,7 +96,7 @@
 						<div class="comment-content">
 							<div class="comment-inner-content">
 								<div class="comment-container markdown-body editormd-html-preview">
-									{{ item.comment | safe}}
+									<div>{{ item.comment | safe}}</div>
 								</div>
 								<div class="comment-bar">
 									{% if item.user_id == currentId  %}
