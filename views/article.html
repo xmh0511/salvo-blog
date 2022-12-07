@@ -78,7 +78,7 @@
 					<div class="comment-item">
 						<div class="avator">
 							{% if item.avatar == "" or item.avatar | is_null %}
-							<div><img src="{{baseUrl}}public/images/Absolutely.jpg" /></div>
+							<div><img src="{{baseUrl}}public/images/default.jpg" /></div>
 							{% else %}
 							<div><img src="{{baseUrl}}{{item.avatar | safe }}" /></div>
 							{% endif %}
