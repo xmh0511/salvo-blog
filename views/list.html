@@ -112,10 +112,14 @@
 							</div>
 							<div class="person-box-item">
 								<div class="blogerinfo-nickname list-operation-group">
-									<a href="{{baseUrl}}add"><button class="layui-btn layui-btn-primary layui-border-blue">发帖</button></a>
-
+									<a href="{{baseUrl}}add"><button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button></a>
+									<div>
+										<button onclick="logout()" class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs" style="margin-left: 5px;">
+											<i class="layui-icon layui-icon-logout"></i>
+										</button>
+									</div>
 									<div class="go-to-home">
-										<a alt="回到主页" href="{{baseUrl}}home/1"><i class="layui-icon layui-icon-home" style="font-size: 38px;"></i></a>
+										<a alt="回到主页" href="{{baseUrl}}home/1"><i class="layui-icon layui-icon-home" style="font-size: 24px;"></i></a>
 									</div>
 								</div>
 								<p>
@@ -246,6 +250,10 @@
 	});
 	window.requestRefresh = function(){
 		window.location.reload();
+	}
+	function logout(){
+		document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
+		window.location.href = `{{baseUrl | safe}}home/1`;
 	}
 </script>
 <style>
