@@ -99,7 +99,7 @@
 					{% if login.login %}
 					<div class="blogerinfo shadow">
 						<div class="blogerinfo-figure">
-							{% if login.avatar == "" %}
+							{% if login.avatar == "" or info.avatar | is_null %}
 							<img id="avatarContainer" src="{{baseUrl}}public/images/default.jpg" alt="avatar" />
 							{% else %}
 							<img id="avatarContainer" src="{{baseUrl}}{{login.avatar | safe }}" alt="avatar" />

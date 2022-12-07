@@ -20,7 +20,7 @@
 	<div class="container">
 		<div>
 			<div id="content">
-				{% if info.avatar == "" %}
+				{% if info.avatar | safe == "" or info.avatar | is_null %}
 				<img id="avatar" src="{{baseUrl}}public/images/default.jpg" />
 				{% else %}
 				<img id="avatar" src="{{baseUrl}}{{info.avatar | safe}}" />

@@ -1216,3 +1216,8 @@ body {
 .go-to-home a{
 	line-height: 32px;
 }
+
+#avatarContainer{
+	width:100px;
+	height:100px;
+}
