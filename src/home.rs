@@ -161,8 +161,8 @@ async fn get_person_right_state<const I: u8>(
     Ok((info, post_count))
 }
 
-async fn generate_token_by_user_id<const I: u8>(user_id: i32) -> Result<String, UniformError<I>> {
-    let exp = OffsetDateTime::now_utc() + Duration::days(1);
+async fn generate_token_by_user_id<const I: u8>(user_id: i32,remember:bool) -> Result<String, UniformError<I>> {
+    let exp = OffsetDateTime::now_utc() + Duration::days(if remember{30}else{1});
     let claim = JwtClaims {
         user_id: user_id.to_string(),
         exp: exp.unix_timestamp(),
@@ -255,6 +255,20 @@ pub async fn home(
 }
 
 #[handler]
+pub async fn  render_login_view(
+	_req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError> {
+	let base_url = depot.get::<String>("base_url").to_result()?;
+	let tera = depot.get::<Tera>("tera").to_result()?;
+	let context = construct_context!["baseUrl"=>base_url];
+	let r = tera.render("login.html", &context)?;
+	res.render(Text::Html(r));
+	Ok(())
+}
+
+#[handler]
 pub async fn login(
     req: &mut Request,
     res: &mut Response,
@@ -262,12 +276,14 @@ pub async fn login(
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
+	let remember_me = req.form::<String>("rememberMe").await.to_result()?;
+	//println!("remember_me remember_me remember_me{remember_me}");
     let pass = md5::compute(pass);
     let pass = format!("{:?}", pass);
     let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
     let base_url = depot.get::<String>("base_url").to_result()?;
     let Some(r) = UserTb::find().filter(user_tb::Column::Name.eq(name.clone())).filter(user_tb::Column::Password.eq(pass)).one(db).await? else{
-		println!("no data found");
+		//println!("no data found");
 		let r = json!({
 			"code":400,
 			"msg": "用户名或密码错误",
@@ -276,7 +292,8 @@ pub async fn login(
 		 res.render(Text::Json(r.to_string()));
 		 return Ok(())
 	};
-    let token = generate_token_by_user_id(r.id).await?;
+	let remember = if remember_me.trim() =="true"{ true}else{false};
+    let token = generate_token_by_user_id(r.id,remember ).await?;
     let r = json!({
        "code":200,
        "msg": "登录成功",
@@ -426,7 +443,7 @@ pub async fn post_register(
             add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
             add_user.privilege = ActiveValue::set(Some(1));
             let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
-            let token = generate_token_by_user_id(r).await?;
+            let token = generate_token_by_user_id(r,false).await?;
             let base_url = depot.get::<String>("base_url").to_result()?;
             let r = json!({
                "code":200,
