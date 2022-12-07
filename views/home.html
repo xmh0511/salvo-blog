@@ -96,9 +96,15 @@
 								<p class="blogerinfo-introduce"><span>等级:</span>{{login.level}}</p>
 							</div>
 							<div class="person-box-item">
-								<p class="blogerinfo-nickname"><a href="{{baseUrl}}add"><button
-											class="layui-btn layui-btn-primary layui-border-blue">发帖</button></a></p>
-								<p><a href="{{baseUrl}}list/1"><span>帖子:</span>{{login.post_count}}</a></p>
+								<p class="blogerinfo-nickname">
+									<a href="{{baseUrl}}add">
+										<button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
+									</a>
+									<button onclick="logout()" class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
+										<i class="layui-icon layui-icon-logout"></i>
+									</button>
+								</p>
+								<p><a class="post-counter" href="{{baseUrl}}list/1"><span>帖子:</span>{{login.post_count}}</a></p>
 							</div>
 						</div>
 						<hr />
@@ -202,6 +208,10 @@
 			}
 		});
 	});
+	function logout(){
+		document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
+		window.location.href = `{{baseUrl | safe}}home/1`;
+	}
 </script>
 <style>
 </style>
