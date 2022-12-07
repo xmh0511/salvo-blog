@@ -148,19 +148,20 @@
 <script>
 	testEditormdView = editormd.markdownToHTML("article-content", {
 		markdown: $("#article_data").text(),//+ "\r\n" + $("#append-test").text(),
+		markdownSourceCode : true, // 是否保留 Markdown 源码，即是否删除保存源码的 Textarea 标签
 		htmlDecode      : true,       // 开启 HTML 标签解析，为了安全性，默认不开启
 		htmlDecode: "style,script,iframe",  // you can filter tags decode
 		//toc             : false,
-		tocm: false,    // Using [TOCM]
 		//tocContainer    : "#custom-toc-container", // 自定义 ToC 容器层
 		//gfm             : false,
 		//tocDropdown     : true,
-		markdownSourceCode : true, // 是否保留 Markdown 源码，即是否删除保存源码的 Textarea 标签
+		tocm: false,    // Using [TOCM]
 		emoji: true,
 		taskList: true,
 		tex: true,  // 默认不解析
 		flowChart: true,  // 默认不解析
 		sequenceDiagram: true,  // 默认不解析
+		htmlDecode : true,
 	});
 	var editor = editormd("comment", {
             width: "100%",
@@ -168,6 +169,13 @@
 			imageUpload:true,
 			imageUploadURL:"{{baseUrl | safe}}upload",
 			saveHTMLToTextarea:true,
+			tocm: false,    // Using [TOCM]
+			emoji: true,
+			taskList: true,
+			tex: true,  // 默认不解析
+			flowChart: true,  // 默认不解析
+			sequenceDiagram: true,  // 默认不解析
+			htmlDecode : true,
             // markdown: "xxxx",     // dynamic set Markdown text
             path : "{{baseUrl | safe }}public/markdown/lib/"  // Autoload modules mode, codemirror, marked... dependents libs path
     });
