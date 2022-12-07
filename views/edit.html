@@ -77,7 +77,12 @@
 			sequenceDiagram: true,  // 默认不解析
 			htmlDecode : true,
             // markdown: "xxxx",     // dynamic set Markdown text
-            path : "{{baseUrl | safe }}public/markdown/lib/"  // Autoload modules mode, codemirror, marked... dependents libs path
+            path : "{{baseUrl | safe }}public/markdown/lib/",  // Autoload modules mode, codemirror, marked... dependents libs path
+			onload:function(){
+				let resizeEvent = document.createEvent('Event')
+				resizeEvent.initEvent('resize', true, true)
+				window.dispatchEvent(resizeEvent)
+			}
     });
 	layui.use('layer', function () {
 		var layer = layui.layer;
