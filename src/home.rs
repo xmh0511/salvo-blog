@@ -610,10 +610,23 @@ pub async fn read_article(
             }
         }
         JwtAuthState::Forbidden => {
-            let context =
-                construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
-            let r = tera.render("404.html", &context)?;
-            res.render(Text::Html(r));
+            if need_level == 999 {
+                let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                let r = tera.render("404.html", &context)?;
+                res.render(Text::Html(r));
+            } else {
+                if need_level <= 1 {
+                    increase_view_count(article_id, db).await?;
+                    let comments = get_comments_from_article_id(article_id, db).await?;
+                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
+                    let r = tera.render("article.html", &context)?;
+                    res.render(Text::Html(r));
+                } else {
+                    let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                    let r = tera.render("404.html", &context)?;
+                    res.render(Text::Html(r));
+                }
+            }
         }
     };
     Ok(())
