@@ -11,7 +11,6 @@ use tera::{Context, Tera};
 
 use salvo::jwt_auth::CookieFinder;
 
-use home::SECRET_KEY;
 
 use home::JwtClaims;
 
@@ -81,6 +80,7 @@ impl Handler for AuthorGuardByMethod {
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
+        println!("AuthorGuardByMethod");
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
                 ctrl.call_next(req, depot, res).await;
@@ -113,9 +113,48 @@ impl Handler for AuthorGuardByMethod {
                 ctrl.skip_rest();
             }
             JwtAuthState::Forbidden => {
+                let http_method = req.method();
+                if http_method == salvo::http::Method::GET {
+                    // response html
+                    let base_url = depot.get::<String>("base_url").unwrap();
+                    let tera = depot.get::<Tera>("tera").unwrap();
+                    let mut context = Context::new();
+                    context.insert("code", &404);
+                    context.insert("msg", "没有权限执行此操作");
+                    context.insert("baseUrl", &base_url);
+                    let r = tera
+                        .render("404.html", &context)
+                        .unwrap_or(String::from("error"));
+                    res.render(Text::Html(r));
+                } else if http_method == salvo::http::Method::POST {
+                    let base_url = depot.get::<String>("base_url").unwrap();
+                    let r = json!({
+                        "code":400,
+                        "msg":"没有权限执行此操作",
+                        "baseUrl":base_url,
+                        "success":0,
+                        "message":"没有权限执行此操作",
+                    });
+                    res.render(Text::Json(r.to_string()))
+                }
                 ctrl.skip_rest();
             }
         }
+    }
+}
+#[derive(Clone)]
+struct SecretKeyForJWT(String);
+#[async_trait]
+impl Handler for SecretKeyForJWT{
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        depot.insert("secret_key", self.0.clone());
+        ctrl.call_next(req, depot, res).await;
     }
 }
 
@@ -136,7 +175,7 @@ impl tera::Filter for IsNullFilter {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt().init();
+    //tracing_subscriber::fmt().init();
 
     match fs::create_dir("./public/upload").await {
         Ok(_) => {}
@@ -166,6 +205,7 @@ async fn main() {
     let base_url = json_v.get("base_url").unwrap().as_str().unwrap().to_owned();
     let database_url = json_v.get("database_url").unwrap().as_str().unwrap();
     let bind_addr = json_v.get("bind_addr").unwrap().as_str().unwrap();
+    let secret_key = json_v.get("secret_key").unwrap().as_str().unwrap();
 
     let db = Database::connect(database_url).await;
     let Ok(db) = db else{
@@ -179,7 +219,7 @@ async fn main() {
 
     tera.register_filter("is_null", IsNullFilter);
 
-    let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(SECRET_KEY.to_owned())
+    let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(secret_key.to_owned())
         .with_finders(vec![
             // Box::new(HeaderFinder::new()),
             Box::new(CookieFinder::new("token")),
@@ -196,6 +236,7 @@ async fn main() {
     let home_router = Router::with_path("home/<page>").get(home::home);
     let router = router.push(login_router);
     let router = router.push(home_router);
+    let router = router.push(Router::with_path("home/<**>").get(home::home));
     let router = router.push(
         Router::with_path("list/<page>")
             .hoop(AuthorGuardByMethod)
@@ -275,10 +316,11 @@ async fn main() {
     let root_router = Router::new()
         .hoop(TemplateEngineInjection(tera))
         .hoop(BaseUrlInjector(base_url))
+        .hoop(SecretKeyForJWT(secret_key.to_owned()))
         .push(router)
         .push(router_static_asserts);
 
-    tracing::info!("Listening on {}", bind_addr);
+    //tracing::info!("Listening on {}", bind_addr);
 
     Server::new(TcpListener::bind(bind_addr))
         .serve(root_router)
