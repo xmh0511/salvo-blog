@@ -190,6 +190,7 @@ pub async fn home(
     let pagination = ArticleTb::find()
         .order_by_desc(article_tb::Column::UpdateTime)
         .filter(article_tb::Column::ArticleState.eq(1))
+        .filter(article_tb::Column::Level.ne(999))
         .into_json()
         .paginate(db, 10);
     let mut data = pagination.fetch_page(page).await?;
@@ -443,7 +444,7 @@ pub async fn post_register(
             let pass = format!("{:?}", md5::compute(pass));
             add_user.password = ActiveValue::set(Some(pass));
             add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
-            add_user.privilege = ActiveValue::set(Some(1));
+            add_user.privilege = ActiveValue::set(Some(2));
             let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
             let token = generate_token_by_user_id(r,false).await?;
             let base_url = depot.get::<String>("base_url").to_result()?;
@@ -556,30 +557,49 @@ pub async fn read_article(
                 .one(db)
                 .await?
                 .to_result()?;
-            if need_level <= person.privilege.unwrap_or(1) as u64 {
-				increase_view_count(article_id,db).await?;
-                let comments = get_comments_from_article_id(article_id, db).await?;
-                let currend_id = i32::from_str_radix(&data.claims.user_id, 10)?;
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
-                let r = tera.render("article.html", &context)?;
-                res.render(Text::Html(r));
-            } else {
-                let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
-                let r = tera.render("404.html", &context)?;
-                res.render(Text::Html(r));
+            let currend_id = i32::from_str_radix(&data.claims.user_id, 10)?;
+            if need_level == 999{
+                if currend_id as u64 ==  article_model.get("user_id").to_result()?.as_u64().to_result()?{
+                    let comments = get_comments_from_article_id(article_id, db).await?;
+                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
+                    let r = tera.render("article.html", &context)?;
+                    res.render(Text::Html(r));
+                }else{
+                    let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                    let r = tera.render("404.html", &context)?;
+                    res.render(Text::Html(r));
+                }
+            }else{
+                if need_level <= person.privilege.unwrap_or(1) as u64 {
+                    increase_view_count(article_id,db).await?;
+                    let comments = get_comments_from_article_id(article_id, db).await?;
+                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
+                    let r = tera.render("article.html", &context)?;
+                    res.render(Text::Html(r));
+                } else {
+                    let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                    let r = tera.render("404.html", &context)?;
+                    res.render(Text::Html(r));
+                }
             }
         }
         JwtAuthState::Unauthorized => {
-            if need_level <= 1 {
-				increase_view_count(article_id,db).await?;
-                let comments = get_comments_from_article_id(article_id, db).await?;
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
-                let r = tera.render("article.html", &context)?;
-                res.render(Text::Html(r));
-            } else {
+            if need_level == 999{
                 let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
                 let r = tera.render("404.html", &context)?;
                 res.render(Text::Html(r));
+            }else{
+                if need_level <= 1 {
+                    increase_view_count(article_id,db).await?;
+                    let comments = get_comments_from_article_id(article_id, db).await?;
+                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
+                    let r = tera.render("article.html", &context)?;
+                    res.render(Text::Html(r));
+                } else {
+                    let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                    let r = tera.render("404.html", &context)?;
+                    res.render(Text::Html(r));
+                }
             }
         }
         JwtAuthState::Forbidden => {}
