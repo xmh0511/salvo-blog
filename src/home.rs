@@ -132,6 +132,9 @@ async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>,
 				FROM
 					article_tb a
 					LEFT JOIN view_tb c ON a.id = c.article_id 
+                WHERE
+                    a.`level` <> 999 
+                    AND a.article_state = 1 
 				GROUP BY
 					a.id 
 				) AS T 
@@ -209,7 +212,7 @@ pub async fn home(
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
     let base_url = depot.get::<String>("base_url").to_result()?;
-    let total_page = ArticleTb::find().count(db).await?;
+    let total_page = ArticleTb::find().filter(article_tb::Column::ArticleState.eq(1)).filter(article_tb::Column::Level.ne(999)).count(db).await?;
     let login_data = 'login_data: {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
