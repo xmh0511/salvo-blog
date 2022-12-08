@@ -162,7 +162,6 @@ async fn get_person_right_state<const I: u8>(
 }
 
 async fn generate_token_by_user_id<const I: u8>(user_id: i32,remember:bool) -> Result<String, UniformError<I>> {
-    //println!("{remember}");
     let exp = OffsetDateTime::now_utc() + Duration::days(if remember{30}else{1});
     let claim = JwtClaims {
         user_id: user_id.to_string(),
@@ -207,7 +206,6 @@ pub async fn home(
     }
 
     let hot_list = get_hot_article_list(db).await?;
-    //println!("{data:?}");
     let mut context = Context::new();
     let base_url = depot.get::<String>("base_url").to_result()?;
     let total_page = ArticleTb::find().count(db).await?;
@@ -236,7 +234,6 @@ pub async fn home(
                 })
             }
             _ => {
-                //println!("no login");
                 json!({
                     "login":false,
                     "avatar":""
@@ -279,13 +276,11 @@ pub async fn login(
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
 	let remember_me = req.form::<String>("rememberMe").await.to_result()?;
-	//println!("remember_me remember_me remember_me{remember_me}");
     let pass = md5::compute(pass);
     let pass = format!("{:?}", pass);
     let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
     let base_url = depot.get::<String>("base_url").to_result()?;
     let Some(r) = UserTb::find().filter(user_tb::Column::Name.eq(name.clone())).filter(user_tb::Column::Password.eq(pass)).one(db).await? else{
-		//println!("no data found");
 		let r = json!({
 			"code":400,
 			"msg": "用户名或密码错误",
@@ -295,7 +290,6 @@ pub async fn login(
 		 return Ok(())
 	};
 	let remember = if remember_me.trim() =="true"{ true}else{false};
-    //println!("login api invoke");
     let token = generate_token_by_user_id(r.id,remember ).await?;
     let r = json!({
        "code":200,
@@ -384,7 +378,6 @@ ORDER BY
     context.insert("total", &total_count);
     context.insert("baseUrl", &base_url);
     context.insert("hotArticles", &hot_list);
-    //println!("{context:#?}");
     let r = tera.render("list.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -502,7 +495,8 @@ async fn get_article_and_author_by_article_id(
 	article_tb.update_time,
 	article_tb.`level`,
 	article_tb.content,
-	user_tb.`name` as userName
+	user_tb.`name` as userName,
+    article_tb.user_id as user_id
 FROM
 	article_tb
 	LEFT JOIN user_tb ON user_tb.id = article_tb.user_id 
@@ -666,7 +660,6 @@ pub async fn edit_comment(
     let tera = depot.get::<Tera>("tera").to_result()?;
     let base_url = depot.get::<String>("base_url").to_result()?;
     if let Some(x) = r {
-        //println!("{x:?}");
         let context = construct_context!["info"=>x,"baseUrl"=>base_url];
         let r = tera.render("editcomment.html", &context)?;
         res.render(Text::Html(r));
