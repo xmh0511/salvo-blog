@@ -253,7 +253,7 @@
 		window.location.reload();
 	}
 	function logout(){
-		document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";
+		document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path={{baseUrl | safe}}`;
 		window.location.href = `{{baseUrl | safe}}home/1`;
 	}
 </script>
