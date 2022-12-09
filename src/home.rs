@@ -196,8 +196,13 @@ pub async fn home(
         .filter(article_tb::Column::Level.ne(999))
         .into_json()
         .paginate(db, 10);
+	let tera = depot.get::<Tera>("tera").to_result()?;
+	let total_pages = pagination.num_pages().await?;
+	if (page+1) > total_pages{
+		return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
+	}
     let mut data = pagination.fetch_page(page).await?;
-    let tera = depot.get::<Tera>("tera").to_result()?;
+
     for model in &mut data {
         let id = model.get("id").to_result()?.as_u64().to_result()?;
         let tag_id = model.get("tag_id").to_result()?.as_u64().to_result()?;
