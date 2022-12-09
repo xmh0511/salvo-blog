@@ -185,22 +185,27 @@ pub async fn home(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let base_url = depot.get::<String>("base_url").to_result()?;
     let page = match req.param::<u64>("page") {
-        Some(x) => x - 1,
-        _ => 0,
+        Some(x) if x >= 1 => x - 1,
+        _ => {
+            let uri = format!("{base_url}home/1");
+            res.render(Redirect::other(uri));
+            return Ok(());
+        }
     };
+    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
     let pagination = ArticleTb::find()
         .order_by_desc(article_tb::Column::UpdateTime)
         .filter(article_tb::Column::ArticleState.eq(1))
         .filter(article_tb::Column::Level.ne(999))
         .into_json()
         .paginate(db, 10);
-	let tera = depot.get::<Tera>("tera").to_result()?;
-	let total_pages = pagination.num_pages().await?;
-	if page!=0 &&  (page+1) > total_pages{
-		return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
-	}
+    let tera = depot.get::<Tera>("tera").to_result()?;
+    let total_pages = pagination.num_pages().await?;
+    if page != 0 && (page + 1) > total_pages {
+        return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
+    }
     let mut data = pagination.fetch_page(page).await?;
 
     for model in &mut data {
@@ -216,8 +221,11 @@ pub async fn home(
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
-    let base_url = depot.get::<String>("base_url").to_result()?;
-    let total_page = ArticleTb::find().filter(article_tb::Column::ArticleState.eq(1)).filter(article_tb::Column::Level.ne(999)).count(db).await?;
+    let total_page = ArticleTb::find()
+        .filter(article_tb::Column::ArticleState.eq(1))
+        .filter(article_tb::Column::Level.ne(999))
+        .count(db)
+        .await?;
     let login_data = 'login_data: {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
@@ -321,8 +329,15 @@ pub async fn person_list(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let page = req.param::<u64>("page").unwrap_or(1);
-    let page = page - 1;
+    let base_url = depot.get::<String>("base_url").to_result()?;
+    let page = match req.param::<u64>("page") {
+        Some(x) if x >= 1 => x - 1,
+        _ => {
+            let uri = format!("{base_url}list/1");
+            res.render(Redirect::other(uri));
+            return Ok(());
+        }
+    };
     let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
     let user_id = data.claims.user_id.clone();
     let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
@@ -361,15 +376,20 @@ ORDER BY
 	R.update_time DESC
 	LIMIT {offset}, 10"#
     );
-	let tera = depot.get::<Tera>("tera").to_result()?;
+    let tera = depot.get::<Tera>("tera").to_result()?;
     let total_count = ArticleTb::find()
         .filter(article_tb::Column::UserId.eq(user_id.as_str()))
         .count(db)
         .await?;
-	let total_page = 	(total_count / 10) + if total_count >= 10 {total_count%10}else{1};
-	if page!=0 && page + 1 > total_page {
-		return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
-	}
+    let total_page = (total_count / 10)
+        + if total_count >= 10 {
+            total_count % 10
+        } else {
+            1
+        };
+    if page != 0 && page + 1 > total_page {
+        return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
+    }
     let r = ArticleTb::find()
         .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql))
         .into_json()
@@ -389,7 +409,6 @@ ORDER BY
     });
 
     let mut context = Context::new();
-    let base_url = depot.get::<String>("base_url").to_result()?;
     let hot_list = get_hot_article_list(db).await?;
     context.insert("articles", &r);
     context.insert("login", &login_v);
