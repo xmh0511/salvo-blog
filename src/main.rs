@@ -80,7 +80,6 @@ impl Handler for AuthorGuardByMethod {
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        println!("AuthorGuardByMethod");
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
                 ctrl.call_next(req, depot, res).await;
@@ -277,6 +276,7 @@ async fn main() {
             .hoop(AuthorGuardByMethod)
             .get(home::person_list),
     );
+	let router = router.push(Router::with_path("list/<**>").hoop(AuthorGuardByMethod).get(home::person_list));
     let router = router.push(
         Router::with_path("register")
             .get(home::register)
