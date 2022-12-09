@@ -2,7 +2,7 @@
 <html lang="zh">
 
 <head>
-	<base href="{{baseUrl}}" />
+	<base href="{{baseUrl | safe}}" />
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta http-equiv="Content-Language" content="zh-CN">
@@ -11,11 +11,11 @@
 	<script>
 		window.baseUrl = `{{baseUrl | safe }}`;
 	</script>
-	<link rel="shortcut icon" href="{{baseUrl}}favicon.ico" type="image/x-icon">
-	<link rel="stylesheet" href="{{baseUrl}}public/plug/layui/css/layui.css">
-	<script type="text/javascript" src="{{baseUrl}}public/js/jquery-3.6.0.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl}}public/plug/layui/layui.js"></script>
-	<script type="text/javascript" src="{{baseUrl}}public/js/iceEditor.js"></script>
+	<link rel="shortcut icon" href="{{baseUrl | safe}}favicon.ico" type="image/x-icon">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/plug/layui/css/layui.css">
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/iceEditor.js"></script>
 </head>
 
 <body>
@@ -23,9 +23,9 @@
 		<div>
 			<div id="content">
 				{% if info.avatar | safe == "" or info.avatar | is_null %}
-				<img id="avatar" src="{{baseUrl}}public/images/default.jpg" />
+				<img id="avatar" src="{{baseUrl | safe}}public/images/default.jpg" />
 				{% else %}
-				<img id="avatar" src="{{baseUrl}}{{info.avatar | safe}}" />
+				<img id="avatar" src="{{baseUrl | safe}}{{info.avatar | safe}}" />
 				{% endif %}
 			</div>
 		</div>
@@ -34,7 +34,7 @@
 		</div>
 	</div>
 </body>
-<script type="text/javascript" src="{{baseUrl}}public/js/clipboard.min.js"></script>
+<script type="text/javascript" src="{{baseUrl | safe}}public/js/clipboard.min.js"></script>
 <script type="text/javascript">
 	layui.use(['layer', 'upload'], function () {
 		var layer = layui.layer;

@@ -2,7 +2,7 @@
 <html lang="zh">
 
 <head>
-	<base href="{{baseUrl}}" />
+	<base href="{{baseUrl | safe}}" />
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta http-equiv="Content-Language" content="zh-CN">
@@ -11,10 +11,10 @@
 	<script>
 		window.baseUrl = `{{baseUrl | safe }}`;
 	</script>
-	<link rel="shortcut icon" href="{{baseUrl}}favicon.ico" type="image/x-icon">
-	<link rel="stylesheet" href="{{baseUrl}}public/plug/layui/css/layui.css">
-	<link rel="stylesheet" href="{{baseUrl}}public/css/login.css">
-	<script type="text/javascript" src="{{baseUrl}}public/plug/layui/layui.js"></script>
+	<link rel="shortcut icon" href="{{baseUrl | safe}}favicon.ico" type="image/x-icon">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/plug/layui/css/layui.css">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/css/login.css">
+	<script type="text/javascript" src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
 </head>
 
 <body>
@@ -39,7 +39,7 @@
 			</div>
 
 			<div class="layui-form-item">
-				<a href="{{baseUrl}}login" class="layui-link">返回登录</a>
+				<a href="{{baseUrl | safe}}login" class="layui-link">返回登录</a>
 				<!-- <a th:href="@{/forget}" class="layui-link pull-right">忘记密码</a> -->
 			</div>
 			<div class="layui-form-item" style="margin-bottom: 20px;">
@@ -47,8 +47,8 @@
 			</div>
 		</form>
 	</div>
-	<script type="text/javascript" src="{{baseUrl}}public/js/clipboard.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl}}public/js/login.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/clipboard.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/login.js"></script>
 </body>
 <style>
 	body:before {

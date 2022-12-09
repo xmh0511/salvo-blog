@@ -7,19 +7,19 @@
 <!--<![endif]-->
 
 <head>
-	<base href="{{baseUrl}}" />
+	<base href="{{baseUrl | safe}}" />
 	<meta charset="utf-8" />
 	<title>404</title>
-	<link rel="shortcut icon" href="{{baseUrl}}favicon.ico" type="image/x-icon">
+	<link rel="shortcut icon" href="{{baseUrl | safe}}favicon.ico" type="image/x-icon">
 	<meta http-equiv="Content-Language" content="zh-CN">
 	<meta name="author" content="pkfrom" />
 	<meta name="keywords" content="404 page, css3, template, html5 template" />
 	<meta name="description" content="404 - Page Template" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 	<!-- Libs CSS -->
-	<link type="text/css" media="all" href="{{baseUrl}}public/css/bootstrap.min.css"
+	<link type="text/css" media="all" href="{{baseUrl | safe}}public/css/bootstrap.min.css"
 		rel="stylesheet" />
-	<link type="text/css" media="all" href="{{baseUrl}}public/css/404.min.css" rel="stylesheet" />
+	<link type="text/css" media="all" href="{{baseUrl | safe}}public/css/404.min.css" rel="stylesheet" />
 
 </head>
 
@@ -48,7 +48,7 @@
 			<!-- Dark version -->
 			<div id="dark" class="row text-center">
 				<div class="info">
-					<img src="{{baseUrl}}public/img/404-dark.png" alt="404 error" />
+					<img src="{{baseUrl | safe}}public/img/404-dark.png" alt="404 error" />
 				</div>
 			</div>
 			<!-- End Dark version -->
@@ -57,10 +57,10 @@
 			<div id="light" class="row text-center">
 				<!-- Info -->
 				<div class="info">
-					<img src="{{baseUrl}}public/img/404-light.gif" alt="404 error" />
+					<img src="{{baseUrl | safe}}public/img/404-light.gif" alt="404 error" />
 					<!-- end Rabbit -->
 					<p>{{msg}}</p>
-					<a href="{{baseUrl}}home/1" class="btn">回到主页</a>
+					<a href="{{baseUrl | safe}}home/1" class="btn">回到主页</a>
 					<!--<a href="#" class="btn btn-brown">Contact Us</a>-->
 				</div>
 				<!-- end Info -->
@@ -74,9 +74,9 @@
 
 
 	<!-- Scripts -->
-	<script src="{{baseUrl}}public/js/jquery-2.2.0.min.js" type="text/javascript"></script>
-	<script src="{{baseUrl}}public/js/jquery.nicescroll.min.js" type="text/javascript"></script>
-	<script src="{{baseUrl}}public/js/404.min.js" type="text/javascript"></script>
+	<script src="{{baseUrl | safe}}public/js/jquery-2.2.0.min.js" type="text/javascript"></script>
+	<script src="{{baseUrl | safe}}public/js/jquery.nicescroll.min.js" type="text/javascript"></script>
+	<script src="{{baseUrl | safe}}public/js/404.min.js" type="text/javascript"></script>
 
 	<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
 	<!--[if lt IE 9]>

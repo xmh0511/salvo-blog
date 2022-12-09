@@ -2,7 +2,7 @@
 <html lang="zh">
 
 <head>
-	<base href="{{baseUrl}}" />
+	<base href="{{baseUrl | safe}}" />
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -10,11 +10,11 @@
 	<script>
 		window.baseUrl = `{{baseUrl |safe}}`;
 	</script>
-	<link rel="shortcut icon" href="{{baseUrl}}favicon.ico" type="image/x-icon">
-	<link rel="stylesheet" href="{{baseUrl}}public/plug/layui/css/layui.css">
-	<link rel="stylesheet" href="{{baseUrl}}public/css/login.css">
-	<link href="{{baseUrl}}public/css/global.css" rel="stylesheet" />
-	<script type="text/javascript" src="{{baseUrl}}public/plug/layui/layui.js"></script>
+	<link rel="shortcut icon" href="{{baseUrl | safe}}favicon.ico" type="image/x-icon">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/plug/layui/css/layui.css">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/css/login.css">
+	<link href="{{baseUrl | safe}}public/css/global.css" rel="stylesheet" />
+	<script type="text/javascript" src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
 </head>
 
 <body>
@@ -35,7 +35,7 @@
 			</div>
 			<div class="layui-form-item">
 				<input type="checkbox" name="remember" title="记住我" lay-skin="primary">
-				<a href="{{baseUrl}}register" class="layui-link pull-right">注册账号</a>
+				<a href="{{baseUrl | safe}}register" class="layui-link pull-right">注册账号</a>
 			</div>
 			<div class="layui-form-item">
 				<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="loginSubmit" lay-submit>登录</button>
@@ -43,8 +43,8 @@
 		</form>
 	</div>
 
-	<script type="text/javascript" src="{{baseUrl}}public/js/clipboard.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl}}public/js/login.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/clipboard.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/login.js"></script>
 </body>
 <style>
 	body:before {

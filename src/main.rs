@@ -1,4 +1,4 @@
-use salvo::prelude::*;
+use salvo::{prelude::*, Catcher};
 use sea_orm::{Database, DatabaseConnection};
 mod home;
 
@@ -155,6 +155,41 @@ impl Handler for SecretKeyForJWT{
     ) {
         depot.insert("secret_key", self.0.clone());
         ctrl.call_next(req, depot, res).await;
+    }
+}
+
+struct Handle404;
+impl Catcher for Handle404 {
+    fn catch(&self, req: &Request, depot: &Depot, res: &mut Response) -> bool {
+        if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+			let http_method = req.method();
+			if http_method == salvo::http::Method::GET {
+				// response html
+				let base_url = depot.get::<String>("base_url").unwrap();
+				let tera = depot.get::<Tera>("tera").unwrap();
+				let mut context = Context::new();
+				context.insert("code", &404);
+				context.insert("msg", "访问的资源不存在");
+				context.insert("baseUrl", &base_url);
+				let r = tera
+					.render("404.html", &context)
+					.unwrap_or(String::from("error"));
+				res.render(Text::Html(r));
+			} else if http_method == salvo::http::Method::POST {
+				let base_url = depot.get::<String>("base_url").unwrap();
+				let r = json!({
+					"code":400,
+					"msg":"访问的资源不存在",
+					"baseUrl":base_url,
+					"success":0,
+					"message":"访问的资源不存在",
+				});
+				res.render(Text::Json(r.to_string()))
+			}
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -320,9 +355,11 @@ async fn main() {
         .push(router)
         .push(router_static_asserts);
 
+    let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];	
+	let service = Service::new(root_router).with_catchers(catchers);
     tracing::info!("Listening on {}", bind_addr);
 
     Server::new(TcpListener::bind(bind_addr))
-        .serve(root_router)
+        .serve(service)
         .await;
 }
