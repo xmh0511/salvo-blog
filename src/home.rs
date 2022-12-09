@@ -381,12 +381,16 @@ ORDER BY
         .filter(article_tb::Column::UserId.eq(user_id.as_str()))
         .count(db)
         .await?;
-    let total_page = (total_count / 10)
-        + if total_count >= 10 {
-            total_count % 10
+    let total_page = if total_count >= 10 {
+        let modulo = total_count % 10;
+        if modulo > 0 {
+            total_count / 10 + 1
         } else {
-            1
-        };
+            total_count / 10
+        }
+    } else {
+        1
+    };
     if page != 0 && page + 1 > total_page {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
     }
