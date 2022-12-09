@@ -198,7 +198,7 @@ pub async fn home(
         .paginate(db, 10);
 	let tera = depot.get::<Tera>("tera").to_result()?;
 	let total_pages = pagination.num_pages().await?;
-	if (page+1) > total_pages{
+	if page!=0 &&  (page+1) > total_pages{
 		return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
 	}
     let mut data = pagination.fetch_page(page).await?;
@@ -361,6 +361,15 @@ ORDER BY
 	R.update_time DESC
 	LIMIT {offset}, 10"#
     );
+	let tera = depot.get::<Tera>("tera").to_result()?;
+    let total_count = ArticleTb::find()
+        .filter(article_tb::Column::UserId.eq(user_id.as_str()))
+        .count(db)
+        .await?;
+	let total_page = 	(total_count / 10) + if total_count >= 10 {total_count%10}else{1};
+	if page!=0 && page + 1 > total_page {
+		return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
+	}
     let r = ArticleTb::find()
         .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql))
         .into_json()
@@ -378,11 +387,7 @@ ORDER BY
         "level":level,
         "post_count":post_count
     });
-    let tera = depot.get::<Tera>("tera").to_result()?;
-    let total_count = ArticleTb::find()
-        .filter(article_tb::Column::UserId.eq(user_id))
-        .count(db)
-        .await?;
+
     let mut context = Context::new();
     let base_url = depot.get::<String>("base_url").to_result()?;
     let hot_list = get_hot_article_list(db).await?;
