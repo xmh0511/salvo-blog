@@ -209,7 +209,9 @@ impl tera::Filter for IsNullFilter {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt().init();
+	let file_appender = tracing_appender::rolling::hourly("./logs", "salvo.blog.log");
+	let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
 
     match fs::create_dir("./public/upload").await {
         Ok(_) => {}
