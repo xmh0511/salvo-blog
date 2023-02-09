@@ -1,5 +1,5 @@
 use salvo::{prelude::*, Catcher};
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{Database, DatabaseConnection,ConnectOptions};
 mod home;
 
 use salvo::serve_static::StaticDir;
@@ -13,6 +13,8 @@ use salvo::jwt_auth::CookieFinder;
 
 
 use home::JwtClaims;
+use tracing::log;
+
 
 macro_rules! share_db {
     ($id:ident) => {
@@ -211,7 +213,7 @@ impl tera::Filter for IsNullFilter {
 async fn main() {
 	let file_appender = tracing_appender::rolling::hourly("./logs", "salvo.blog.log");
 	let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt().with_writer(non_blocking).init();
+    tracing_subscriber::fmt().with_max_level(tracing::Level::INFO).with_writer(non_blocking).init();
 
     match fs::create_dir("./public/upload").await {
         Ok(_) => {}
@@ -243,7 +245,16 @@ async fn main() {
     let bind_addr = json_v.get("bind_addr").unwrap().as_str().unwrap();
     let secret_key = json_v.get("secret_key").unwrap().as_str().unwrap();
 
-    let db = Database::connect(database_url).await;
+	let mut db_opt = ConnectOptions::new(database_url.to_owned());
+	if cfg!(debug_assertions){
+		//println!("in debug mode");
+		db_opt.sqlx_logging_level(log::LevelFilter::Info);
+	}else{
+		//println!("in release mode");
+		db_opt.sqlx_logging(false).sqlx_logging_level(log::LevelFilter::Error);
+	}
+	let db = Database::connect(db_opt).await;
+
     let Ok(db) = db else{
 		panic!("db init error");
 	};

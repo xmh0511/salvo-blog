@@ -342,8 +342,7 @@ pub async fn person_list(
     let user_id = data.claims.user_id.clone();
     let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
     let offset = page * 10;
-    let sql = format!(
-        r#"SELECT
+    let sql = r#"SELECT
 	R.AID,
 	R.`name`,
 	R.title,
@@ -374,8 +373,7 @@ GROUP BY
 	AID 
 ORDER BY
 	R.update_time DESC
-	LIMIT {offset}, 10"#
-    );
+	LIMIT ?, 10"#;
     let tera = depot.get::<Tera>("tera").to_result()?;
     let total_count = ArticleTb::find()
         .filter(article_tb::Column::UserId.eq(user_id.as_str()))
@@ -394,8 +392,13 @@ ORDER BY
     if page != 0 && page + 1 > total_page {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
     }
+    let sql_statement = Statement::from_sql_and_values(
+        DatabaseBackend::MySql,
+        sql,
+        [Value::BigUnsigned(Some(offset))],
+    );
     let r = ArticleTb::find()
-        .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql))
+        .from_raw_sql(sql_statement)
         .into_json()
         .all(db)
         .await?;
@@ -499,8 +502,7 @@ async fn get_comments_from_article_id(
     article_id: i32,
     db: &DatabaseConnection,
 ) -> Result<Vec<JsonValue>, UniformError> {
-    let sql = format!(
-        r#"SELECT
+    let sql = r#"SELECT
 	comment_tb.id,
 	comment_tb.`comment`,
 	comment_tb.md_content,
@@ -513,13 +515,13 @@ FROM
 	comment_tb
 	LEFT JOIN user_tb ON comment_tb.user_id = user_tb.id 
 WHERE
-	comment_tb.article_id = {} 
+	comment_tb.article_id = ?
 ORDER BY
-	comment_tb.create_time"#,
-        article_id
-    );
+	comment_tb.create_time"#;
+    let sql_statement =
+        Statement::from_sql_and_values(DatabaseBackend::MySql, sql, [Value::Int(Some(article_id))]);
     let r = CommentTb::find()
-        .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql))
+        .from_raw_sql(sql_statement)
         .into_json()
         .all(db)
         .await?;
@@ -530,8 +532,7 @@ async fn get_article_and_author_by_article_id(
     article_id: i32,
     db: &DatabaseConnection,
 ) -> Result<JsonValue, UniformError> {
-    let sql = format!(
-        r#"SELECT
+    let sql = r#"SELECT
 	article_tb.id,
 	article_tb.title,
 	article_tb.create_time,
@@ -544,11 +545,11 @@ FROM
 	article_tb
 	LEFT JOIN user_tb ON user_tb.id = article_tb.user_id 
 WHERE
-	article_tb.id = {}"#,
-        article_id
-    );
+	article_tb.id = ?"#;
+    let sql_statement =
+        Statement::from_sql_and_values(DatabaseBackend::MySql, sql, [Value::Int(Some(article_id))]);
     let r = ArticleTb::find()
-        .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql))
+        .from_raw_sql(sql_statement)
         .into_json()
         .one(db)
         .await?
