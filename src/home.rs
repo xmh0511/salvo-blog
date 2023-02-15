@@ -364,7 +364,7 @@ FROM
 		LEFT JOIN tag_tb ON tag_tb.id = article_tb.tag_id
 		LEFT JOIN view_tb ON view_tb.article_id = article_tb.id 
 	WHERE
-		article_tb.user_id = {user_id}
+		article_tb.user_id = ?
 	GROUP BY
 		AID 
 	) AS R
@@ -395,7 +395,7 @@ ORDER BY
     let sql_statement = Statement::from_sql_and_values(
         DatabaseBackend::MySql,
         sql,
-        [Value::BigUnsigned(Some(offset))],
+        [Value::BigInt(Some(i64::from_str_radix(&user_id, 10)?)),Value::BigUnsigned(Some(offset))],
     );
     let r = ArticleTb::find()
         .from_raw_sql(sql_statement)
