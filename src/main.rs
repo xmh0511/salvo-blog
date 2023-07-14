@@ -9,9 +9,9 @@ use tokio::fs;
 
 use tera::{Context, Tera};
 
-use salvo::jwt_auth::CookieFinder;
+use salvo::jwt_auth::{CookieFinder,ConstDecoder};
 
-use home::JwtClaims;
+use home::{JwtClaims,UniformError};
 use tracing::log;
 
 macro_rules! share_db {
@@ -71,25 +71,27 @@ impl Handler for TemplateEngineInjection {
 
 #[derive(Clone)]
 struct AuthorGuardByMethod;
-#[async_trait]
-impl Handler for AuthorGuardByMethod {
+
+#[handler]
+impl AuthorGuardByMethod {
     async fn handle(
         &self,
         req: &mut Request,
         depot: &mut Depot,
         res: &mut Response,
         ctrl: &mut FlowCtrl,
-    ) {
+    ) -> Result<(), UniformError> {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
                 ctrl.call_next(req, depot, res).await;
+                Ok(())
             }
             JwtAuthState::Unauthorized => {
                 let http_method = req.method();
                 if http_method == salvo::http::Method::GET {
                     // response html
-                    let base_url = depot.get::<String>("base_url").unwrap();
-                    let tera = depot.get::<Tera>("tera").unwrap();
+                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
+                    let tera = depot.get::<Tera>("tera").ok_or(anyhow::anyhow!("fail to acquire tera engine"))?;
                     let mut context = Context::new();
                     context.insert("code", &404);
                     context.insert("msg", "没有权限执行此操作");
@@ -99,7 +101,7 @@ impl Handler for AuthorGuardByMethod {
                         .unwrap_or(String::from("error"));
                     res.render(Text::Html(r));
                 } else if http_method == salvo::http::Method::POST {
-                    let base_url = depot.get::<String>("base_url").unwrap();
+                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
                     let r = json!({
                         "code":400,
                         "msg":"没有权限执行此操作",
@@ -110,13 +112,14 @@ impl Handler for AuthorGuardByMethod {
                     res.render(Text::Json(r.to_string()))
                 }
                 ctrl.skip_rest();
+                Ok(())
             }
             JwtAuthState::Forbidden => {
                 let http_method = req.method();
                 if http_method == salvo::http::Method::GET {
                     // response html
-                    let base_url = depot.get::<String>("base_url").unwrap();
-                    let tera = depot.get::<Tera>("tera").unwrap();
+                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
+                    let tera = depot.get::<Tera>("tera").ok_or(anyhow::anyhow!("fail to acquire tera engine"))?;
                     let mut context = Context::new();
                     context.insert("code", &404);
                     context.insert("msg", "没有权限执行此操作");
@@ -126,7 +129,7 @@ impl Handler for AuthorGuardByMethod {
                         .unwrap_or(String::from("error"));
                     res.render(Text::Html(r));
                 } else if http_method == salvo::http::Method::POST {
-                    let base_url = depot.get::<String>("base_url").unwrap();
+                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
                     let r = json!({
                         "code":400,
                         "msg":"没有权限执行此操作",
@@ -137,6 +140,7 @@ impl Handler for AuthorGuardByMethod {
                     res.render(Text::Json(r.to_string()))
                 }
                 ctrl.skip_rest();
+                Ok(())
             }
         }
     }
@@ -157,7 +161,7 @@ impl Handler for SecretKeyForJWT {
     }
 }
 
-struct Handle404(String,Tera);
+struct Handle404(String, Tera);
 #[async_trait]
 impl Handler for Handle404 {
     async fn handle(
@@ -181,7 +185,7 @@ impl Handler for Handle404 {
                 .unwrap_or(String::from("error"));
             res.render(Text::Html(r));
         } else if http_method == salvo::http::Method::POST {
-            let base_url =  &self.0;
+            let base_url = &self.0;
             let r = json!({
                 "code":400,
                 "msg":"访问的资源不存在",
@@ -285,13 +289,21 @@ async fn main() {
 
     tera.register_filter("is_null", IsNullFilter);
 
-    let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(secret_key.to_owned())
-        .finders(vec![
-            // Box::new(HeaderFinder::new()),
-            Box::new(CookieFinder::new("token")),
-            // Box::new(CookieFinder::new("jwt_token")),
-        ])
-        .response_error(false);
+    // let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(secret_key.to_owned())
+    //     .finders(vec![
+    //         // Box::new(HeaderFinder::new()),
+    //         Box::new(CookieFinder::new("token")),
+    //         // Box::new(CookieFinder::new("jwt_token")),
+    //     ])
+    //     .response_error(false);
+    let auth_handler: JwtAuth<JwtClaims, _> =
+        JwtAuth::new(ConstDecoder::from_secret(secret_key.as_bytes()))
+            .finders(vec![
+                // Box::new(HeaderFinder::new()),
+                Box::new(CookieFinder::new("token")),
+                // Box::new(CookieFinder::new("jwt_token")),
+            ])
+            .force_passed(true);
 
     let router = Router::new()
         .hoop(share_db!(db))
@@ -395,6 +407,7 @@ async fn main() {
 
     tracing::info!("Listening on {}", bind_addr);
     let acceptor = TcpListener::new(bind_addr).bind().await;
-    let service = Service::new(root_router).catcher(Catcher::default().hoop(Handle404(base_url,tera)));
+    let service =
+        Service::new(root_router).catcher(Catcher::default().hoop(Handle404(base_url, tera)));
     Server::new(acceptor).serve(service).await;
 }
