@@ -64,6 +64,10 @@
 <script type="text/javascript" src="{{baseUrl | safe}}public/js/clipboard.min.js"></script>
 <script type="text/javascript" src="{{baseUrl | safe}}public/resource.js"></script>
 <script type="text/javascript">
+	editormd.emoji = {
+		ext: ".png",
+		path: "{{baseUrl | safe}}public/emojis/"
+	};
 	var editor = editormd("content", {
             width: "100%",
             height: "100%",

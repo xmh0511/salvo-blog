@@ -35,7 +35,10 @@
 <script type="text/javascript" src="{{baseUrl| safe}}public/markdown/editormd.min.js"></script>
 <script type="text/javascript" src="{{baseUrl | safe}}public/resource.js"></script>
 <script type="text/javascript">
-
+	editormd.emoji = {
+		ext: ".png",
+		path: "{{baseUrl | safe}}public/emojis/"
+	};
 	var editor
 	$(function () {
 		editor = editormd("content", {
