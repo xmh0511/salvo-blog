@@ -19,7 +19,7 @@ use time::{Duration, OffsetDateTime};
 use chrono::prelude::*;
 use jsonwebtoken::{self, EncodingKey};
 
-use serde::{Deserialize, Serialize};
+use ::serde::{Deserialize, Serialize};
 
 macro_rules! construct_context {
     ($($k:expr => $v:expr),+) => {
@@ -55,7 +55,7 @@ impl<const ERRORCODE: u8> Writer for UniformError<ERRORCODE> {
         let err = self.0.to_string();
         if ERRORCODE == 1 {
             let Some(tera) = depot.get::<Tera>("tera") else{
-                res.with_status_code(StatusCode::BAD_REQUEST)
+                res.status_code(StatusCode::BAD_REQUEST)
                 .render(Text::Plain(err));
                 return;
             };
@@ -64,14 +64,14 @@ impl<const ERRORCODE: u8> Writer for UniformError<ERRORCODE> {
             let context = construct_context!["code"=>404,"msg"=>err,"baseUrl"=>base_url];
             let r = tera.render("404.html", &context).unwrap_or(err);
 
-            res.with_status_code(StatusCode::BAD_REQUEST)
+            res.status_code(StatusCode::BAD_REQUEST)
                 .render(Text::Html(r));
         } else {
             let r = json!({
                 "code":400,
                 "msg":self.0.to_string()
             });
-            res.with_status_code(StatusCode::BAD_REQUEST)
+            res.status_code(StatusCode::BAD_REQUEST)
                 .render(Text::Json(r.to_string()));
         }
     }
@@ -834,7 +834,7 @@ pub async fn upload(
         });
         res.render(Text::Json(r.to_string()));
     } else {
-        res.set_status_code(StatusCode::BAD_REQUEST);
+        res.status_code(StatusCode::BAD_REQUEST);
         let r = json!({
             "success":0,
             "message":"file not found in request",
