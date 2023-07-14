@@ -148,6 +148,10 @@
 </style>
 <script type="text/javascript" src="{{baseUrl | safe}}public/resource.js"></script>
 <script>
+	editormd.emoji = {
+		ext: ".png",
+		path: "{{baseUrl | safe}}public/emojis/"
+	};
 	testEditormdView = editormd.markdownToHTML("article-content", {
 		markdown: $("#article_data").text(),//+ "\r\n" + $("#append-test").text(),
 		markdownSourceCode : true, // 是否保留 Markdown 源码，即是否删除保存源码的 Textarea 标签
