@@ -54,9 +54,9 @@ impl<const ERRORCODE: u8> Writer for UniformError<ERRORCODE> {
     async fn write(mut self, _req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let err = self.0.to_string();
         if ERRORCODE == 1 {
-            let Some(tera) = depot.get::<Tera>("tera") else{
+            let Ok(tera) = depot.get::<Tera>("tera") else {
                 res.status_code(StatusCode::BAD_REQUEST)
-                .render(Text::Plain(err));
+                    .render(Text::Plain(err));
                 return;
             };
             let default_url = "/".to_string();
@@ -185,7 +185,9 @@ pub async fn home(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find base_url"))?;
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
@@ -194,14 +196,18 @@ pub async fn home(
             return Ok(());
         }
     };
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find db_conn"))?;
     let pagination = ArticleTb::find()
         .order_by_desc(article_tb::Column::UpdateTime)
         .filter(article_tb::Column::ArticleState.eq(1))
         .filter(article_tb::Column::Level.ne(999))
         .into_json()
         .paginate(db, 10);
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find tera"))?;
     let total_pages = pagination.num_pages().await?;
     if page != 0 && (page + 1) > total_pages {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
@@ -230,14 +236,17 @@ pub async fn home(
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
                 let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
-                let Ok(info) =
-                    get_person_right_state::<RESPONSE_TEXT_FOR_ERROR>(i32::from_str_radix(data.claims.user_id.as_str(), 10)?, db)
-                        .await else{
-                           break 'login_data json!({
-                                "login":false,
-                                "avatar":""
-                            });
-                        };
+                let Ok(info) = get_person_right_state::<RESPONSE_TEXT_FOR_ERROR>(
+                    i32::from_str_radix(data.claims.user_id.as_str(), 10)?,
+                    db,
+                )
+                .await
+                else {
+                    break 'login_data json!({
+                        "login":false,
+                        "avatar":""
+                    });
+                };
                 let avatar = info.0.avatar.unwrap_or_default();
                 let username = info.0.name.unwrap_or_default();
                 let level = info.0.privilege.unwrap_or_default();
@@ -276,8 +285,12 @@ pub async fn render_login_view(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot.get::<String>("base_url").to_result()?;
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let context = construct_context!["baseUrl"=>base_url];
     let r = tera.render("login.html", &context)?;
     res.render(Text::Html(r));
@@ -295,23 +308,34 @@ pub async fn login(
     let remember_me = req.form::<String>("rememberMe").await.to_result()?;
     let pass = md5::compute(pass);
     let pass = format!("{:?}", pass);
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
-    let base_url = depot.get::<String>("base_url").to_result()?;
-    let Some(r) = UserTb::find().filter(user_tb::Column::Name.eq(name.clone())).filter(user_tb::Column::Password.eq(pass)).one(db).await? else{
-		let r = json!({
-			"code":400,
-			"msg": "用户名或密码错误",
-			"baseUrl":base_url
-		 });
-		 res.render(Text::Json(r.to_string()));
-		 return Ok(())
-	};
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let Some(r) = UserTb::find()
+        .filter(user_tb::Column::Name.eq(name.clone()))
+        .filter(user_tb::Column::Password.eq(pass))
+        .one(db)
+        .await?
+    else {
+        let r = json!({
+           "code":400,
+           "msg": "用户名或密码错误",
+           "baseUrl":base_url
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
+    };
     let remember = if remember_me.trim() == "true" {
         true
     } else {
         false
     };
-    let secret_key = depot.get::<String>("secret_key").to_result()?;
+    let secret_key = depot
+        .get::<String>("secret_key")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let token = generate_token_by_user_id(secret_key, r.id, remember).await?;
     let r = json!({
        "code":200,
@@ -329,7 +353,9 @@ pub async fn person_list(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
@@ -340,7 +366,9 @@ pub async fn person_list(
     };
     let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
     let user_id = data.claims.user_id.clone();
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let offset = page * 10;
     let sql = r#"SELECT
 	R.AID,
@@ -374,7 +402,9 @@ GROUP BY
 ORDER BY
 	R.update_time DESC
 	LIMIT ?, 10"#;
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let total_count = ArticleTb::find()
         .filter(article_tb::Column::UserId.eq(user_id.as_str()))
         .count(db)
@@ -395,7 +425,10 @@ ORDER BY
     let sql_statement = Statement::from_sql_and_values(
         DatabaseBackend::MySql,
         sql,
-        [Value::BigInt(Some(i64::from_str_radix(&user_id, 10)?)),Value::BigUnsigned(Some(offset))],
+        [
+            Value::BigInt(Some(i64::from_str_radix(&user_id, 10)?)),
+            Value::BigUnsigned(Some(offset)),
+        ],
     );
     let r = ArticleTb::find()
         .from_raw_sql(sql_statement)
@@ -434,8 +467,12 @@ pub async fn register(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot.get::<String>("base_url").to_result()?;
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let mut context = Context::new();
     context.insert("baseUrl", base_url);
     let r = tera.render("reg.html", &context)?;
@@ -460,7 +497,9 @@ pub async fn post_register(
         res.render(Text::Json(r.to_string()));
         return Ok(());
     } else {
-        let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+        let db = depot
+            .get::<DatabaseConnection>("db_conn")
+            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
         let count = UserTb::find()
             .filter(user_tb::Column::Name.eq(name.clone()))
             .count(db)
@@ -484,9 +523,13 @@ pub async fn post_register(
             add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
             add_user.privilege = ActiveValue::set(Some(2));
             let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
-            let secret_key = depot.get::<String>("secret_key").to_result()?;
+            let secret_key = depot
+                .get::<String>("secret_key")
+                .map_err(|_| anyhow::anyhow!("cannot find field"))?;
             let token = generate_token_by_user_id(secret_key, r, false).await?;
-            let base_url = depot.get::<String>("base_url").to_result()?;
+            let base_url = depot
+                .get::<String>("base_url")
+                .map_err(|_| anyhow::anyhow!("cannot find field"))?;
             let r = json!({
                "code":200,
                "token":token,
@@ -574,7 +617,9 @@ pub async fn read_article(
 ) -> Result<(), UniformError> {
     let article_id: i32 = req.param("id").to_result()?;
 
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
 
     let article_model = get_article_and_author_by_article_id(article_id, db).await?;
 
@@ -584,9 +629,13 @@ pub async fn read_article(
         .as_u64()
         .to_result()?;
 
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
 
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     match depot.jwt_auth_state() {
         JwtAuthState::Authorized => {
             let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
@@ -682,12 +731,16 @@ pub async fn delete_comment(
         .claims
         .user_id;
     let identifier = identifier.as_str();
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .count(db)
         .await?;
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     if r == 1 {
         let _ = CommentTb::delete_by_id(comment_id).exec(db).await?;
         let r = json!({
@@ -719,14 +772,20 @@ pub async fn edit_comment(
         .claims
         .user_id;
     let identifier = identifier.as_str();
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .into_json()
         .one(db)
         .await?;
-    let tera = depot.get::<Tera>("tera").to_result()?;
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     if let Some(x) = r {
         let context = construct_context!["info"=>x,"baseUrl"=>base_url];
         let r = tera.render("editcomment.html", &context)?;
@@ -749,7 +808,9 @@ pub async fn save_edit_comment(
     let comment_id = req.param::<i32>("id").to_result()?;
     let comment: String = req.form("comment").await.to_result()?;
     let md_content: String = req.form("md_content").await.to_result()?;
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let ref identifier = depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
@@ -757,7 +818,9 @@ pub async fn save_edit_comment(
         .user_id;
     let identifier = identifier.as_str();
     //let tera = depot.get::<Tera>("tera").to_result()?;
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let model = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .one(db)
@@ -806,7 +869,9 @@ pub async fn add_comment(
     model.md_content = ActiveValue::set(Some(md_comment));
     model.update_time = now;
     model.user_id = ActiveValue::set(Some(identifier));
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let _ = model.insert(db).await?;
     let r = json!({
         "code":200
@@ -850,12 +915,18 @@ pub async fn render_add_article_view(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot.get::<String>("base_url").to_result()?;
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let tags = TagTb::find().into_json().all(db).await?;
     let levels = LevelTb::find().into_json().all(db).await?;
     let context = construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url];
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let r = tera.render("add.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -884,8 +955,12 @@ pub async fn add_article(
             .claims
             .user_id;
         let identifier = identifier.as_str();
-        let base_url = depot.get::<String>("base_url").to_result()?;
-        let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+        let base_url = depot
+            .get::<String>("base_url")
+            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        let db = depot
+            .get::<DatabaseConnection>("db_conn")
+            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
         let mut model = article_tb::ActiveModel::new();
         model.article_state = ActiveValue::set(Some(1));
         model.content = ActiveValue::set(Some(content));
@@ -922,9 +997,13 @@ pub async fn render_article_edit_view(
 
     let identifier = identifier.as_str();
 
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
 
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
 
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier))
@@ -937,7 +1016,9 @@ pub async fn render_article_edit_view(
     let levels = LevelTb::find().into_json().all(db).await?;
     let context =
         construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url,"article"=>model];
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let r = tera.render("edit.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -956,9 +1037,13 @@ pub async fn edit_article(
         .to_result()?
         .claims
         .user_id;
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
 
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -996,8 +1081,12 @@ pub async fn shadow_article(
         .to_result()?
         .claims
         .user_id;
-    let base_url = depot.get::<String>("base_url").to_result()?;
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -1033,15 +1122,21 @@ pub async fn render_profile_view(
         .to_result()?
         .claims
         .user_id;
-    let base_url = depot.get::<String>("base_url").to_result()?;
-    let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let model = UserTb::find_by_id(i32::from_str_radix(identifier.as_str(), 10)?)
         .into_json()
         .one(db)
         .await?
         .to_result()?;
     let context = construct_context!["info"=>model,"baseUrl"=>base_url];
-    let tera = depot.get::<Tera>("tera").to_result()?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     let r = tera.render("person.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1059,7 +1154,9 @@ pub async fn edit_profile(
         .claims
         .user_id;
     let avatar = req.form::<String>("path").await.to_result()?;
-    let base_url = depot.get::<String>("base_url").to_result()?;
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
     if avatar.len() == 0 {
         let r = json!({
             "code":404,
@@ -1068,7 +1165,9 @@ pub async fn edit_profile(
         });
         res.render(Text::Json(r.to_string()));
     } else {
-        let db = depot.get::<DatabaseConnection>("db_conn").to_result()?;
+        let db = depot
+            .get::<DatabaseConnection>("db_conn")
+            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
         let model = UserTb::find_by_id(i32::from_str_radix(identifier.as_str(), 10)?)
             .one(db)
             .await?

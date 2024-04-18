@@ -9,9 +9,9 @@ use tokio::fs;
 
 use tera::{Context, Tera};
 
-use salvo::jwt_auth::{CookieFinder,ConstDecoder};
+use salvo::jwt_auth::{ConstDecoder, CookieFinder};
 
-use home::{JwtClaims,UniformError};
+use home::{JwtClaims, UniformError};
 use tracing::log;
 
 macro_rules! share_db {
@@ -90,8 +90,12 @@ impl AuthorGuardByMethod {
                 let http_method = req.method();
                 if http_method == salvo::http::Method::GET {
                     // response html
-                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
-                    let tera = depot.get::<Tera>("tera").ok_or(anyhow::anyhow!("fail to acquire tera engine"))?;
+                    let base_url = depot
+                        .get::<String>("base_url")
+                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
+                    let tera = depot
+                        .get::<Tera>("tera")
+                        .map_err(|_| anyhow::anyhow!("fail to acquire tera engine"))?;
                     let mut context = Context::new();
                     context.insert("code", &404);
                     context.insert("msg", "没有权限执行此操作");
@@ -101,7 +105,9 @@ impl AuthorGuardByMethod {
                         .unwrap_or(String::from("error"));
                     res.render(Text::Html(r));
                 } else if http_method == salvo::http::Method::POST {
-                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
+                    let base_url = depot
+                        .get::<String>("base_url")
+                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
                     let r = json!({
                         "code":400,
                         "msg":"没有权限执行此操作",
@@ -118,8 +124,12 @@ impl AuthorGuardByMethod {
                 let http_method = req.method();
                 if http_method == salvo::http::Method::GET {
                     // response html
-                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
-                    let tera = depot.get::<Tera>("tera").ok_or(anyhow::anyhow!("fail to acquire tera engine"))?;
+                    let base_url = depot
+                        .get::<String>("base_url")
+                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
+                    let tera = depot
+                        .get::<Tera>("tera")
+                        .map_err(|_| anyhow::anyhow!("fail to acquire tera engine"))?;
                     let mut context = Context::new();
                     context.insert("code", &404);
                     context.insert("msg", "没有权限执行此操作");
@@ -129,7 +139,9 @@ impl AuthorGuardByMethod {
                         .unwrap_or(String::from("error"));
                     res.render(Text::Html(r));
                 } else if http_method == salvo::http::Method::POST {
-                    let base_url = depot.get::<String>("base_url").ok_or(anyhow::anyhow!("fail to acquire base_url"))?;
+                    let base_url = depot
+                        .get::<String>("base_url")
+                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
                     let r = json!({
                         "code":400,
                         "msg":"没有权限执行此操作",
@@ -245,13 +257,13 @@ async fn main() {
         }
     };
 
-    let Ok(stream) = fs::read("./config.json").await else{
-		panic!("fail to read config file");
-	};
+    let Ok(stream) = fs::read("./config.json").await else {
+        panic!("fail to read config file");
+    };
 
-    let Ok(content) = std::str::from_utf8(&stream[..]) else{
-		panic!("fail to parse the config file content");
-	};
+    let Ok(content) = std::str::from_utf8(&stream[..]) else {
+        panic!("fail to parse the config file content");
+    };
 
     let json_v: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(content);
     let json_v = match json_v {
@@ -278,9 +290,9 @@ async fn main() {
     }
     let db = Database::connect(db_opt).await;
 
-    let Ok(db) = db else{
-		panic!("db init error");
-	};
+    let Ok(db) = db else {
+        panic!("db init error");
+    };
 
     let mut tera = match Tera::new("views/**/*.html") {
         Ok(tera) => tera,
