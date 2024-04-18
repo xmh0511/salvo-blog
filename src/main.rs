@@ -389,7 +389,7 @@ async fn main() {
     let router_static_asserts = Router::with_path("<**path>").get(
         StaticDir::new(["public"])
             .defaults("index.html")
-            .listing(false),
+            .auto_listing(false),
     );
 
     let upload_router = Router::with_path("upload")
