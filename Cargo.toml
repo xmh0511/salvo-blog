@@ -6,17 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-salvo = { version = "0.46.0", features=["serve-static","session","jwt-auth"]}
-tokio = { version = "1.29.1", features = ["macros"] }
-sea-orm = { version = "0.11.0", features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros" ] }
-serde_json = "1.0.89"
-tracing-subscriber = {version = "0.3.17",features = ["env-filter","time","local-time"]}
+salvo = { version = "0.67.0", features=["serve-static","session","jwt-auth"]}
+tokio = { version = "1", features = ["macros"] }
+sea-orm = { version = "0.12", features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros" ] }
+serde_json = "1"
+tracing-subscriber = {version = "0.3",features = ["env-filter","time","local-time"]}
 tracing = "0.1"
-tera = "1.17.1"
-anyhow = "1.0.66"
-serde="1.0.148"
-jsonwebtoken = "8.0"
+tera = "1"
+anyhow = "1"
+serde="1"
+jsonwebtoken = "9.3.0"
 md5 = "0.7.0"
-chrono = "0.4.23"
-tracing-appender = "0.2.2"
-time ={ version = "0.3.22",features = ["macros"] }
+chrono = "0.4"
+tracing-appender = "0.2"
+time ={ version = "0.3",features = ["macros"] }
