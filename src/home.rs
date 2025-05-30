@@ -3,7 +3,7 @@ mod database;
 use database::prelude::*;
 
 use salvo::prelude::*;
-use sea_orm::{prelude::*, DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, Statement};
+use sea_orm::{DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, Statement, prelude::*};
 
 use serde_json::json;
 
@@ -187,9 +187,12 @@ pub async fn home(
 ) -> Result<(), UniformError> {
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find base_url"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let page = match req.param::<u64>("page") {
-        Some(x) if x >= 1 => x - 1,
+        Some(x) if x >= 1 => {
+            println!("has some page {x}");
+            x - 1
+        }
         _ => {
             let uri = format!("{base_url}home/1");
             res.render(Redirect::other(uri));
@@ -198,7 +201,7 @@ pub async fn home(
     };
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find db_conn"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let pagination = ArticleTb::find()
         .order_by_desc(article_tb::Column::UpdateTime)
         .filter(article_tb::Column::ArticleState.eq(1))
@@ -207,7 +210,7 @@ pub async fn home(
         .paginate(db, 10);
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find tera"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let total_pages = pagination.num_pages().await?;
     if page != 0 && (page + 1) > total_pages {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
@@ -237,7 +240,7 @@ pub async fn home(
             JwtAuthState::Authorized => {
                 let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
                 let Ok(info) = get_person_right_state::<RESPONSE_TEXT_FOR_ERROR>(
-                    i32::from_str_radix(data.claims.user_id.as_str(), 10)?,
+                    data.claims.user_id.as_str().parse()?,
                     db,
                 )
                 .await
@@ -287,10 +290,10 @@ pub async fn render_login_view(
 ) -> Result<(), UniformError> {
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let context = construct_context!["baseUrl"=>base_url];
     let r = tera.render("login.html", &context)?;
     res.render(Text::Html(r));
@@ -310,10 +313,10 @@ pub async fn login(
     let pass = format!("{:?}", pass);
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let Some(r) = UserTb::find()
         .filter(user_tb::Column::Name.eq(name.clone()))
         .filter(user_tb::Column::Password.eq(pass))
@@ -328,14 +331,10 @@ pub async fn login(
         res.render(Text::Json(r.to_string()));
         return Ok(());
     };
-    let remember = if remember_me.trim() == "true" {
-        true
-    } else {
-        false
-    };
+    let remember = remember_me.trim() == "true";
     let secret_key = depot
         .get::<String>("secret_key")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire signing key"))?;
     let token = generate_token_by_user_id(secret_key, r.id, remember).await?;
     let r = json!({
        "code":200,
@@ -355,7 +354,7 @@ pub async fn person_list(
 ) -> Result<(), UniformError> {
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
@@ -368,7 +367,7 @@ pub async fn person_list(
     let user_id = data.claims.user_id.clone();
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let offset = page * 10;
     let sql = r#"SELECT
 	R.AID,
@@ -404,7 +403,7 @@ ORDER BY
 	LIMIT ?, 10"#;
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let total_count = ArticleTb::find()
         .filter(article_tb::Column::UserId.eq(user_id.as_str()))
         .count(db)
@@ -426,7 +425,7 @@ ORDER BY
         DatabaseBackend::MySql,
         sql,
         [
-            Value::BigInt(Some(i64::from_str_radix(&user_id, 10)?)),
+            Value::BigInt(Some(user_id.parse()?)),
             Value::BigUnsigned(Some(offset)),
         ],
     );
@@ -435,7 +434,7 @@ ORDER BY
         .into_json()
         .all(db)
         .await?;
-    let info = get_person_right_state(i32::from_str_radix(user_id.as_str(), 10)?, db).await?;
+    let info = get_person_right_state(user_id.parse()?, db).await?;
     let avatar = info.0.avatar.unwrap_or_default();
     let username = info.0.name.unwrap_or_default();
     let level = info.0.privilege.unwrap_or_default();
@@ -469,10 +468,10 @@ pub async fn register(
 ) -> Result<(), UniformError> {
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let mut context = Context::new();
     context.insert("baseUrl", base_url);
     let r = tera.render("reg.html", &context)?;
@@ -499,7 +498,7 @@ pub async fn post_register(
     } else {
         let db = depot
             .get::<DatabaseConnection>("db_conn")
-            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+            .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
         let count = UserTb::find()
             .filter(user_tb::Column::Name.eq(name.clone()))
             .count(db)
@@ -525,11 +524,11 @@ pub async fn post_register(
             let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
             let secret_key = depot
                 .get::<String>("secret_key")
-                .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+                .map_err(|_| anyhow::anyhow!("failed to acquire signing key"))?;
             let token = generate_token_by_user_id(secret_key, r, false).await?;
             let base_url = depot
                 .get::<String>("base_url")
-                .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+                .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
             let r = json!({
                "code":200,
                "token":token,
@@ -549,6 +548,7 @@ async fn get_comments_from_article_id(
 	comment_tb.id,
 	comment_tb.`comment`,
 	comment_tb.md_content,
+    comment_tb.create_time,
 	comment_tb.update_time,
 	user_tb.id AS user_id,
 	user_tb.avatar,
@@ -619,7 +619,7 @@ pub async fn read_article(
 
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
 
     let article_model = get_article_and_author_by_article_id(article_id, db).await?;
 
@@ -631,22 +631,22 @@ pub async fn read_article(
 
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
 
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     match depot.jwt_auth_state() {
         JwtAuthState::Authorized => {
             let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
             let user_id = &data.claims.user_id;
-            let person = UserTb::find_by_id(i32::from_str_radix(user_id, 10)?)
+            let person = UserTb::find_by_id(user_id.parse::<i32>()?)
                 .one(db)
                 .await?
                 .to_result()?;
-            let currend_id = i32::from_str_radix(&data.claims.user_id, 10)?;
+            let currend_id = data.claims.user_id.parse::<u64>()?;
             if need_level == 999 {
-                if currend_id as u64
+                if currend_id
                     == article_model
                         .get("user_id")
                         .to_result()?
@@ -662,18 +662,16 @@ pub async fn read_article(
                     let r = tera.render("404.html", &context)?;
                     res.render(Text::Html(r));
                 }
+            } else if need_level <= person.privilege.unwrap_or(1) as u64 {
+                increase_view_count(article_id, db).await?;
+                let comments = get_comments_from_article_id(article_id, db).await?;
+                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
+                let r = tera.render("article.html", &context)?;
+                res.render(Text::Html(r));
             } else {
-                if need_level <= person.privilege.unwrap_or(1) as u64 {
-                    increase_view_count(article_id, db).await?;
-                    let comments = get_comments_from_article_id(article_id, db).await?;
-                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
-                    let r = tera.render("article.html", &context)?;
-                    res.render(Text::Html(r));
-                } else {
-                    let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
-                    let r = tera.render("404.html", &context)?;
-                    res.render(Text::Html(r));
-                }
+                let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                let r = tera.render("404.html", &context)?;
+                res.render(Text::Html(r));
             }
         }
         JwtAuthState::Unauthorized => {
@@ -681,18 +679,16 @@ pub async fn read_article(
                 let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
                 let r = tera.render("404.html", &context)?;
                 res.render(Text::Html(r));
+            } else if need_level <= 1 {
+                increase_view_count(article_id, db).await?;
+                let comments = get_comments_from_article_id(article_id, db).await?;
+                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
+                let r = tera.render("article.html", &context)?;
+                res.render(Text::Html(r));
             } else {
-                if need_level <= 1 {
-                    increase_view_count(article_id, db).await?;
-                    let comments = get_comments_from_article_id(article_id, db).await?;
-                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
-                    let r = tera.render("article.html", &context)?;
-                    res.render(Text::Html(r));
-                } else {
-                    let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
-                    let r = tera.render("404.html", &context)?;
-                    res.render(Text::Html(r));
-                }
+                let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                let r = tera.render("404.html", &context)?;
+                res.render(Text::Html(r));
             }
         }
         JwtAuthState::Forbidden => {
@@ -700,18 +696,16 @@ pub async fn read_article(
                 let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
                 let r = tera.render("404.html", &context)?;
                 res.render(Text::Html(r));
+            } else if need_level <= 1 {
+                increase_view_count(article_id, db).await?;
+                let comments = get_comments_from_article_id(article_id, db).await?;
+                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
+                let r = tera.render("article.html", &context)?;
+                res.render(Text::Html(r));
             } else {
-                if need_level <= 1 {
-                    increase_view_count(article_id, db).await?;
-                    let comments = get_comments_from_article_id(article_id, db).await?;
-                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
-                    let r = tera.render("article.html", &context)?;
-                    res.render(Text::Html(r));
-                } else {
-                    let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
-                    let r = tera.render("404.html", &context)?;
-                    res.render(Text::Html(r));
-                }
+                let context = construct_context!["code"=>404, "msg"=>"没有该文章的阅读权限","baseUrl"=>base_url];
+                let r = tera.render("404.html", &context)?;
+                res.render(Text::Html(r));
             }
         }
     };
@@ -725,7 +719,7 @@ pub async fn delete_comment(
     depot: &mut Depot,
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let comment_id = req.param::<i32>("id").to_result()?;
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
@@ -733,14 +727,14 @@ pub async fn delete_comment(
     let identifier = identifier.as_str();
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .count(db)
         .await?;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     if r == 1 {
         let _ = CommentTb::delete_by_id(comment_id).exec(db).await?;
         let r = json!({
@@ -766,7 +760,7 @@ pub async fn edit_comment(
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
     let comment_id = req.param::<i32>("id").to_result()?;
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
@@ -774,7 +768,7 @@ pub async fn edit_comment(
     let identifier = identifier.as_str();
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .into_json()
@@ -782,10 +776,10 @@ pub async fn edit_comment(
         .await?;
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     if let Some(x) = r {
         let context = construct_context!["info"=>x,"baseUrl"=>base_url];
         let r = tera.render("editcomment.html", &context)?;
@@ -810,8 +804,8 @@ pub async fn save_edit_comment(
     let md_content: String = req.form("md_content").await.to_result()?;
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
-    let ref identifier = depot
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
@@ -820,7 +814,7 @@ pub async fn save_edit_comment(
     //let tera = depot.get::<Tera>("tera").to_result()?;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let model = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .one(db)
@@ -852,12 +846,12 @@ pub async fn add_comment(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
         .user_id;
-    let identifier = i32::from_str_radix(identifier, 10)?;
+    let identifier = identifier.parse()?;
     let article_id = req.param::<i32>("id").to_result()?;
     let comment: String = req.form("comment").await.to_result()?;
     let md_comment: String = req.form("md_content").await.to_result()?;
@@ -871,7 +865,7 @@ pub async fn add_comment(
     model.user_id = ActiveValue::set(Some(identifier));
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let _ = model.insert(db).await?;
     let r = json!({
         "code":200
@@ -917,16 +911,16 @@ pub async fn render_add_article_view(
 ) -> Result<(), UniformError> {
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let tags = TagTb::find().into_json().all(db).await?;
     let levels = LevelTb::find().into_json().all(db).await?;
     let context = construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url];
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let r = tera.render("add.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -942,14 +936,14 @@ pub async fn add_article(
     let title = req.form::<String>("title").await.to_result()?;
     let content = req.form::<String>("content").await.to_result()?;
     let level = req.form::<i32>("level").await.to_result()?;
-    if title.len() == 0 || content.len() == 0 {
+    if title.is_empty() || content.is_empty() {
         let r = json!({
             "code":404,
             "msg":"填写完整信息"
         });
         res.render(Text::Json(r.to_string()));
     } else {
-        let ref identifier = depot
+        let identifier = &depot
             .jwt_auth_data::<JwtClaims>()
             .to_result()?
             .claims
@@ -957,10 +951,10 @@ pub async fn add_article(
         let identifier = identifier.as_str();
         let base_url = depot
             .get::<String>("base_url")
-            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
         let db = depot
             .get::<DatabaseConnection>("db_conn")
-            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+            .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
         let mut model = article_tb::ActiveModel::new();
         model.article_state = ActiveValue::set(Some(1));
         model.content = ActiveValue::set(Some(content));
@@ -970,7 +964,7 @@ pub async fn add_article(
         model.tag_id = ActiveValue::set(Some(tag));
         model.title = ActiveValue::set(Some(title));
         model.update_time = now;
-        model.user_id = ActiveValue::set(Some(i32::from_str_radix(identifier, 10)?));
+        model.user_id = ActiveValue::set(Some(identifier.parse()?));
         model.insert(db).await?;
         let r = json!({
             "code":200,
@@ -989,7 +983,7 @@ pub async fn render_article_edit_view(
 ) -> Result<(), UniformError> {
     let article_id = req.param::<i32>("id").to_result()?;
 
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
@@ -999,11 +993,11 @@ pub async fn render_article_edit_view(
 
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
 
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
 
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier))
@@ -1018,7 +1012,7 @@ pub async fn render_article_edit_view(
         construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url,"article"=>model];
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let r = tera.render("edit.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1032,18 +1026,18 @@ pub async fn edit_article(
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let article_id = req.param::<i32>("id").to_result()?;
 
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
         .user_id;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
 
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -1076,17 +1070,17 @@ pub async fn shadow_article(
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let article_id = req.param::<i32>("id").to_result()?;
 
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
         .user_id;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -1117,18 +1111,18 @@ pub async fn render_profile_view(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
         .user_id;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let db = depot
         .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
-    let model = UserTb::find_by_id(i32::from_str_radix(identifier.as_str(), 10)?)
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let model = UserTb::find_by_id(identifier.parse::<i32>()?)
         .into_json()
         .one(db)
         .await?
@@ -1136,7 +1130,7 @@ pub async fn render_profile_view(
     let context = construct_context!["info"=>model,"baseUrl"=>base_url];
     let tera = depot
         .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
     let r = tera.render("person.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1148,7 +1142,7 @@ pub async fn edit_profile(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
-    let ref identifier = depot
+    let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
         .claims
@@ -1156,8 +1150,8 @@ pub async fn edit_profile(
     let avatar = req.form::<String>("path").await.to_result()?;
     let base_url = depot
         .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("cannot find field"))?;
-    if avatar.len() == 0 {
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    if avatar.is_empty() {
         let r = json!({
             "code":404,
             "msg":"填写完整信息",
@@ -1167,8 +1161,8 @@ pub async fn edit_profile(
     } else {
         let db = depot
             .get::<DatabaseConnection>("db_conn")
-            .map_err(|_| anyhow::anyhow!("cannot find field"))?;
-        let model = UserTb::find_by_id(i32::from_str_radix(identifier.as_str(), 10)?)
+            .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+        let model = UserTb::find_by_id(identifier.parse::<i32>()?)
             .one(db)
             .await?
             .to_result()?;

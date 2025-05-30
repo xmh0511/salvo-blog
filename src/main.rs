@@ -10,6 +10,7 @@ use tokio::fs;
 use tera::{Context, Tera};
 
 use salvo::jwt_auth::{ConstDecoder, CookieFinder};
+// use salvo::rate_limiter::{BasicQuota, FixedGuard, MokaStore, RateLimiter, RemoteIpIssuer};
 
 use home::{JwtClaims, UniformError};
 use tracing::log;
@@ -92,10 +93,10 @@ impl AuthorGuardByMethod {
                     // response html
                     let base_url = depot
                         .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
+                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
                     let tera = depot
                         .get::<Tera>("tera")
-                        .map_err(|_| anyhow::anyhow!("fail to acquire tera engine"))?;
+                        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
                     let mut context = Context::new();
                     context.insert("code", &404);
                     context.insert("msg", "没有权限执行此操作");
@@ -107,7 +108,7 @@ impl AuthorGuardByMethod {
                 } else if http_method == salvo::http::Method::POST {
                     let base_url = depot
                         .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
+                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
                     let r = json!({
                         "code":400,
                         "msg":"没有权限执行此操作",
@@ -126,10 +127,10 @@ impl AuthorGuardByMethod {
                     // response html
                     let base_url = depot
                         .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
+                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
                     let tera = depot
                         .get::<Tera>("tera")
-                        .map_err(|_| anyhow::anyhow!("fail to acquire tera engine"))?;
+                        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
                     let mut context = Context::new();
                     context.insert("code", &404);
                     context.insert("msg", "没有权限执行此操作");
@@ -141,7 +142,7 @@ impl AuthorGuardByMethod {
                 } else if http_method == salvo::http::Method::POST {
                     let base_url = depot
                         .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("fail to acquire base_url"))?;
+                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
                     let r = json!({
                         "code":400,
                         "msg":"没有权限执行此操作",
@@ -225,7 +226,7 @@ impl tera::Filter for IsNullFilter {
         }
     }
 }
-use time::{macros::format_description, UtcOffset};
+use time::{UtcOffset, macros::format_description};
 use tracing_subscriber::fmt::time::OffsetTime;
 
 #[tokio::main]
@@ -252,17 +253,17 @@ async fn main() {
         Ok(_) => {}
         Err(e) => {
             if e.kind() != std::io::ErrorKind::AlreadyExists {
-                panic!("fail to create upload directory");
+                panic!("failed to create upload directory");
             }
         }
     };
 
     let Ok(stream) = fs::read("./config.json").await else {
-        panic!("fail to read config file");
+        panic!("failed to read config file");
     };
 
     let Ok(content) = std::str::from_utf8(&stream[..]) else {
-        panic!("fail to parse the config file content");
+        panic!("failed to parse the config file content");
     };
 
     let json_v: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(content);
@@ -317,25 +318,33 @@ async fn main() {
             ])
             .force_passed(true);
 
+    // let limiter = RateLimiter::new(
+    //     FixedGuard::new(),
+    //     MokaStore::new(),
+    //     RemoteIpIssuer,
+    //     BasicQuota::per_second(1),
+    // );
+
     let router = Router::new()
         .hoop(share_db!(db))
         .hoop(auth_handler)
+        //.hoop(limiter)
         .get(home::home);
 
     let login_router = Router::with_path("login")
         .post(home::login)
         .get(home::render_login_view);
-    let home_router = Router::with_path("home/<page>").get(home::home);
+    let home_router = Router::with_path("home/{page}").get(home::home);
     let router = router.push(login_router);
     let router = router.push(home_router);
-    let router = router.push(Router::with_path("home/<**>").get(home::home));
+    let router = router.push(Router::with_path("home/{**}").get(home::home));
     let router = router.push(
-        Router::with_path("list/<page>")
+        Router::with_path("list/{page}")
             .hoop(AuthorGuardByMethod)
             .get(home::person_list),
     );
     let router = router.push(
-        Router::with_path("list/<**>")
+        Router::with_path("list/{**}")
             .hoop(AuthorGuardByMethod)
             .get(home::person_list),
     );
@@ -345,7 +354,7 @@ async fn main() {
             .post(home::post_register),
     );
 
-    let router = router.push(Router::with_path("article/<id>").get(home::read_article));
+    let router = router.push(Router::with_path("article/{id}").get(home::read_article));
 
     let router = router.push(
         Router::with_path("add")
@@ -355,38 +364,38 @@ async fn main() {
     );
 
     let router = router.push(
-        Router::with_path("edit/<id>")
+        Router::with_path("edit/{id}")
             .hoop(AuthorGuardByMethod)
             .get(home::render_article_edit_view)
             .post(home::edit_article),
     );
 
     let router = router.push(
-        Router::with_path("delete/<id>")
+        Router::with_path("delete/{id}")
             .hoop(AuthorGuardByMethod)
             .post(home::shadow_article),
     );
 
     let router = router.push(
-        Router::with_path("delcomment/<id>")
+        Router::with_path("delcomment/{id}")
             .hoop(AuthorGuardByMethod)
             .post(home::delete_comment),
     );
 
     let router = router.push(
-        Router::with_path("commentedit/<id>")
+        Router::with_path("commentedit/{id}")
             .hoop(AuthorGuardByMethod)
             .get(home::edit_comment),
     );
 
     let router = router.push(
-        Router::with_path("editcomment/<id>")
+        Router::with_path("editcomment/{id}")
             .hoop(AuthorGuardByMethod)
             .post(home::save_edit_comment),
     );
 
     let router = router.push(
-        Router::with_path("comment/<id>")
+        Router::with_path("comment/{id}")
             .hoop(AuthorGuardByMethod)
             .post(home::add_comment),
     );
@@ -398,17 +407,19 @@ async fn main() {
             .post(home::edit_profile),
     );
 
-    let router_static_asserts = Router::with_path("<**path>").get(
-        StaticDir::new(["public"])
-            .defaults("index.html")
-            .auto_list(false),
-    );
-
     let upload_router = Router::with_path("upload")
         .hoop(AuthorGuardByMethod)
         .post(home::upload);
 
     let router = router.push(upload_router);
+
+    let router_static_asserts = Router::with_path("{**path}")
+        .hoop(Compression::new().enable_gzip(CompressionLevel::Fastest))
+        .get(
+            StaticDir::new(["public"])
+                .defaults("index.html")
+                .auto_list(false),
+        );
 
     let root_router = Router::new()
         .hoop(TemplateEngineInjection(tera.clone()))

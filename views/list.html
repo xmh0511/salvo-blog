@@ -7,7 +7,7 @@
 	<meta http-equiv="Content-Type" content="text/html; Charset=utf-8">
 	<meta http-equiv="Content-Language" content="zh-CN">
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-	<title>Blog - 个人列表</title>
+	<title>博客 - 个人列表</title>
 	<script>
 		window.baseUrl = `{{baseUrl | safe}}`;
 		//console.log(window.baseUrl)
@@ -115,7 +115,7 @@
 								<div class="blogerinfo-nickname list-operation-group">
 									<a href="{{baseUrl | safe}}add"><button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button></a>
 									<div>
-										<button onclick="logout()" class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs" style="margin-left: 5px;">
+										<button class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs" style="margin-left: 5px;">
 											<i class="layui-icon layui-icon-logout"></i>
 										</button>
 									</div>
@@ -233,6 +233,18 @@
 						layer.msg(r.msg, { icon: 5 });
 					}
 				})
+			}, function (index) {
+				//按钮【按钮二】的回调
+			});
+		});
+
+
+		$(".logoutButton").off("click").on("click", function () {
+			layer.confirm('确定退出当前账号吗?', {
+				btn: ['确定', '取消'] //可以无限个按钮
+			}, function (index, layero) {
+				document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path={{baseUrl | safe}}`;
+				window.location.href = `{{baseUrl | safe}}home/1`;
 			}, function (index) {
 				//按钮【按钮二】的回调
 			});

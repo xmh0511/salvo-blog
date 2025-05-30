@@ -84,10 +84,20 @@
 	border-top: 1px dashed #e2e2e2;
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
 }
-.comment-bar span{
+.comment-bar .editComment, .comment-bar .deleteComment{
+	cursor: pointer;
+}
+.comment-time-in-bar{
+	display: flex;
+}
+.comment-time-in-bar-item{
+	margin-left: 10px;
+}
+/* .comment-bar span{
   cursor: pointer;
-}
+} */
 
 .commentPoster {
 	width: 100%;
