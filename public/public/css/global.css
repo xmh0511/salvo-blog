@@ -571,6 +571,9 @@ body {
 		display: inline;
 		float: right;
 	}
+	.article>.article-footer .article-viewinfo i{
+		font-size: 14px !important;
+	}
 
 	.article>.article-footer .article-author {
 		display: inline;
