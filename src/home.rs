@@ -7,6 +7,8 @@ use sea_orm::{DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, State
 
 use serde_json::json;
 
+use url_encor::Encoder;
+
 use self::database::{article_tb, comment_tb, tag_tb, user_tb, view_tb};
 
 use sea_orm::{entity::*, query::*};
@@ -208,6 +210,7 @@ pub async fn home(
     let tera = depot
         .get::<Tera>("tera")
         .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let total_count = pagination.num_items().await?;
     let total_pages = pagination.num_pages().await?;
     if page != 0 && (page + 1) > total_pages {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
@@ -227,11 +230,6 @@ pub async fn home(
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
-    let total_page = ArticleTb::find()
-        .filter(article_tb::Column::ArticleState.eq(1))
-        .filter(article_tb::Column::Level.ne(999))
-        .count(db)
-        .await?;
     let login_data = 'login_data: {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
@@ -270,7 +268,7 @@ pub async fn home(
     context.insert("baseUrl", base_url);
     context.insert("login", &login_data);
     context.insert("articles", &data);
-    context.insert("total", &total_page);
+    context.insert("total", &total_count);
     context.insert("commentCount", &10);
     context.insert("page", &(page + 1));
     context.insert("hotArticles", &hot_list);
@@ -373,6 +371,7 @@ pub async fn person_list(
 	R.view_count,
 	R.update_time,
 	R.article_state,
+    R.level,
 	COUNT( comment_tb.id ) AS comment_count 
 FROM
 	(
@@ -382,6 +381,7 @@ FROM
 		article_tb.id AS AID,
 		article_tb.update_time,
 		article_tb.article_state,
+        article_tb.level,
 		COUNT( view_tb.article_id ) AS view_count 
 	FROM
 		article_tb
@@ -485,6 +485,14 @@ pub async fn post_register(
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
     let confirm_pass = req.form::<String>("password2").await.to_result()?;
+    if pass.chars().count() < 6 {
+        let r = json!({
+            "code":400,
+            "msg":"密码长度少于6位"
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
+    }
     if pass != confirm_pass {
         let r = json!({
             "code":400,
@@ -1174,5 +1182,114 @@ pub async fn edit_profile(
         });
         res.render(Text::Json(r.to_string()));
     }
+    Ok(())
+}
+
+#[handler]
+pub async fn search(
+    req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError> {
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let query_key = req.query("query").unwrap_or("");
+    let page = match req.param::<u64>("page") {
+        Some(x) if x >= 1 => x - 1,
+        _ => {
+            let query_key = query_key.url_encode();
+            let uri = format!("{base_url}search/1/?query={query_key}");
+            res.render(Redirect::other(uri));
+            return Ok(());
+        }
+    };
+    let query_key = query_key.url_decode();
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let query_condition = format!("%{query_key}%");
+    let pagination = ArticleTb::find()
+        .order_by_desc(article_tb::Column::UpdateTime)
+        .filter(article_tb::Column::ArticleState.eq(1))
+        .filter(article_tb::Column::Level.ne(999))
+        .filter(
+            Condition::any().add(
+                article_tb::Column::Title
+                    .like(&query_condition)
+                    .add(article_tb::Column::Content.like(&query_condition)),
+            ),
+        )
+        .into_json()
+        .paginate(db, 10);
+
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let total_count = pagination.num_items().await?;
+    let total_pages = pagination.num_pages().await?;
+    if page != 0 && (page + 1) > total_pages {
+        return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
+    }
+    let mut data = pagination.fetch_page(page).await?;
+
+    for model in &mut data {
+        let id = model.get("id").to_result()?.as_u64().to_result()?;
+        let tag_id = model.get("tag_id").to_result()?.as_u64().to_result()?;
+        let user_id = model.get("user_id").to_result()?.as_u64().to_result()?;
+        let result = get_relative_information_from_article(id, user_id, tag_id, db).await?;
+        model["userName"] = json!(result.0.name);
+        model["tagName"] = json!(result.1.name);
+        model["read_count"] = json!(result.2);
+        model["commentCount"] = json!(result.3);
+    }
+
+    let hot_list = get_hot_article_list(db).await?;
+    let mut context = Context::new();
+    let login_data = 'login_data: {
+        match depot.jwt_auth_state() {
+            JwtAuthState::Authorized => {
+                let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
+                let Ok(info) = get_person_right_state::<RESPONSE_TEXT_FOR_ERROR>(
+                    data.claims.user_id.as_str().parse()?,
+                    db,
+                )
+                .await
+                else {
+                    break 'login_data json!({
+                        "login":false,
+                        "avatar":""
+                    });
+                };
+                let avatar = info.0.avatar.unwrap_or_default();
+                let username = info.0.name.unwrap_or_default();
+                let level = info.0.privilege.unwrap_or_default();
+                let post_count = info.1;
+                json!({
+                    "login":true,
+                    "avatar":avatar,
+                    "name":username,
+                    "level":level,
+                    "post_count":post_count
+                })
+            }
+            _ => {
+                json!({
+                    "login":false,
+                    "avatar":""
+                })
+            }
+        }
+    };
+    context.insert("baseUrl", base_url);
+    context.insert("login", &login_data);
+    context.insert("articles", &data);
+    context.insert("total", &total_count);
+    context.insert("query", &query_key);
+    context.insert("commentCount", &10);
+    context.insert("page", &(page + 1));
+    context.insert("hotArticles", &hot_list);
+    let r = tera.render("search.html", &context)?;
+    res.render(Text::Html(r));
     Ok(())
 }
