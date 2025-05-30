@@ -529,6 +529,7 @@ pub async fn post_register(
             let r = json!({
                "code":200,
                "token":token,
+               "msg":"注册成功",
                "baseUrl":base_url
             });
             res.render(Text::Json(r.to_string()));

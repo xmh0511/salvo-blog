@@ -160,3 +160,7 @@ body {
 	z-index: 999;
 	width:100%;
 }
+
+.layui-layer-content.layui-layer-padding{
+    height:24px;
+}
