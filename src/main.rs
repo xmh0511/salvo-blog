@@ -344,6 +344,8 @@ async fn main() {
             .hoop(AuthorGuardByMethod)
             .get(home::person_list),
     );
+    let router = router.push(Router::with_path("search/{page}").get(home::search));
+    let router = router.push(Router::with_path("search/{**}").get(home::search));
     let router = router.push(
         Router::with_path("list/{**}")
             .hoop(AuthorGuardByMethod)

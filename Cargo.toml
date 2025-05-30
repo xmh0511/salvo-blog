@@ -35,3 +35,5 @@ md5 = "0.7.0"
 chrono = "0.4.41"
 tracing-appender = "0.2.3"
 time = { version = "0.3.41", features = ["macros"] }
+url_encor = "1.0.3"
+#url = "2.5.4"

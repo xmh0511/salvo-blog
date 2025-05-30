@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html lang="zh">
+
+<head>
+	<base href="{{baseUrl | safe }}" />
+	<meta http-equiv="Content-Type" content="text/html; Charset=utf-8">
+	<meta http-equiv="Content-Language" content="zh-CN">
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<title>搜索-{{query}}</title>
+	<script>
+		window.baseUrl = `{{baseUrl | safe}}`;
+		//console.log(window.baseUrl)
+	</script>
+	<link rel="shortcut icon" href="{{baseUrl | safe }}favicon.ico" type="image/x-icon">
+	<!--Layui-->
+	<link href="{{baseUrl | safe}}public/plug/layui/css/layui.css" rel="stylesheet" />
+	<!--font-awesome-->
+	<link href="{{baseUrl | safe}}public/plug/font-awesome/css/font-awesome.min.css" rel="stylesheet" />
+	<!--全局样式表-->
+	<link href="{{baseUrl | safe}}public/css/global.css" rel="stylesheet" />
+	<!-- 本页样式表 -->
+	<link href="{{baseUrl | safe}}public/css/home.css" rel="stylesheet" />
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/login.js"></script>
+</head>
+
+<body>
+	<!-- 导航 -->
+	<!-- 主体（一般只改变这里的内容） -->
+	<div class="blog-body">
+		<!-- canvas -->
+		<div class="canvas-banner-container">
+			<div class="canvas-filter"></div>
+			<canvas id="canvas-banner" style="background-image:url('{{baseUrl | safe}}public/images/xkbg.png');"></canvas>
+		</div>
+		<!--为了及时效果需要立即设置canvas宽高，否则就在home.js中设置-->
+		<script type="text/javascript">
+			var canvas = document.getElementById('canvas-banner');
+			canvas.width = window.document.body.clientWidth - 10;//减去滚动条的宽度
+			if (screen.width >= 992) {
+				canvas.height = window.innerHeight * 1 / 2;
+			} else {
+				canvas.height = window.innerHeight * 2 / 7;
+			}
+		</script>
+		<!-- 这个一般才是真正的主体内容 -->
+		<div class="blog-container">
+			<div class="blog-main">
+				<!-- 网站公告提示 -->
+				<div class="home-tips shadow">
+					<i style="float:left;line-height:17px;" class="fa fa-volume-up"></i>
+					<div class="home-tips-container">
+						<span>myblog</span>
+					</div>
+				</div>
+				<!--左边文章列表-->
+				<div class="blog-main-left">
+					{% for item in articles %}
+					<div class="article shadow">
+						<div>
+							<a href="{{baseUrl | safe}}article/{{item.id}}">
+								<p>{{item.title}}</p>
+							</a>
+						</div>
+						<div class="clear"></div>
+						<div class="article-footer">
+							<span><i
+									class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time | date(format="%Y-%m-%d %H:%M")}}</span>
+							<span class="article-author"><i class="fa fa-user"></i>&nbsp;&nbsp;{{item.userName}}</span>
+							<span><i class="fa fa-tag"></i>&nbsp;&nbsp;<a href="#">{{item.tagName}}</a></span>
+							<span class="article-viewinfo"><i class="fa fa-eye"></i>&nbsp;{{item.read_count}}</span>
+							<span class="article-viewinfo"><i
+									class="fa fa-commenting"></i>&nbsp;{{item.commentCount}}</span>
+							<span class="article-viewinfo"><i class="layui-icon layui-icon-diamond"></i>&nbsp;{{item.level}}</span>
+						</div>
+					</div>
+					{% endfor %}
+					<div id="pagination">
+
+					</div>
+				</div>
+				<!--右边小栏目-->
+				<div class="blog-main-right">
+					{% if login.login %}
+					<div class="blogerinfo shadow">
+						<div class="blogerinfo-figure">
+							{% if login.avatar == "" or login.avatar | is_null %}
+							<img id="avatarContainer" src="{{baseUrl | safe}}public/images/default.jpg" alt="avatar" />
+							{% else %}
+							<img id="avatarContainer" src="{{login.avatar | safe}}" alt="avatar" />
+							{% endif %}
+						</div>
+						<div class="person-box">
+							<div class="person-box-item">
+								<p class="blogerinfo-nickname">{{login.name}}</p>
+								<p class="blogerinfo-introduce"><span>等级:</span>{{login.level}}</p>
+							</div>
+							<div class="person-box-item">
+								<p class="blogerinfo-nickname">
+									<a href="{{baseUrl | safe}}add">
+										<button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
+									</a>
+									<button class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
+										<i class="layui-icon layui-icon-logout"></i>
+									</button>
+								</p>
+								<p><a class="post-counter" href="{{baseUrl | safe}}list/1"><span>帖子:</span>{{login.post_count}}</a></p>
+							</div>
+						</div>
+						<hr />
+					</div>
+					{% else %}
+					<div class="blogerinfo shadow">
+						<div class="blogerinfo-figure">
+							<button type="button" class="layui-btn layui-btn-normal" onclick="toLogin()">登录</button>
+						</div>
+					</div>
+					{% endif %}
+					<div></div>
+					<!--占位-->
+					<div class="blog-module shadow">
+						<div class="blog-module-title">热文排行</div>
+						<ul class="fa-ul blog-module-ul">
+							{% for item in hotArticles %}
+							<li><i class="fa-li fa fa-hand-o-right"></i><a
+									href="{{baseUrl | safe}}article/{{item.id}}">{{item.title}}</a></li>
+							{% endfor %}
+						</ul>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</div>
+	</div>
+	<div class="mask-dialog">
+		<div class="login-wrapper-box layui-anim layui-anim-scale layui-hide">
+			<form class="layui-form">
+				<!--        <h2>FS 文件管理用户登录</h2>-->
+				<h2>用户登录</h2>
+				<div class="layui-form-item layui-input-icon-group">
+					<i class="layui-icon layui-icon-username"></i>
+					<input class="layui-input" id="email" name="nickName" placeholder="用户名" autocomplete="off"
+						lay-verType="tips" lay-verify="required" required />
+				</div>
+				<div class="layui-form-item layui-input-icon-group">
+					<i class="layui-icon layui-icon-password"></i>
+					<input class="layui-input" name="password" placeholder="请输入登录密码" type="password" lay-verType="tips"
+						lay-verify="required" required />
+				</div>
+				<div class="layui-form-item login-operation-group">
+					<input type="checkbox" name="remember" title="记住我" lay-skin="primary">
+					<a href="{{baseUrl | safe}}register" class="layui-link pull-right">注册账号</a>
+				</div>
+				<div class="layui-form-item login-button-box">
+					<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="loginSubmit" lay-submit>登录</button>
+					<button class="layui-btn layui-btn-fluid layui-btn-primary" onclick="cancelBox(event)">取消</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<!-- 底部 -->
+	{% include "footer.html" %}
+
+	<!--遮罩-->
+	<div class="blog-mask animated layui-hide"></div>
+	<!-- layui.js -->
+	<!-- 全局脚本 -->
+	<script src="{{baseUrl | safe}}public/js/global.js"></script>
+	<!-- 本页脚本 -->
+	<script src="{{baseUrl | safe}}public/js/home.js"></script>
+</body>
+<script>
+	function toLogin() {
+		$(".login-wrapper-box").removeClass("layui-hide");
+	}
+	function cancelBox(e) {
+		e.preventDefault();
+		$(".login-wrapper-box").addClass("layui-hide");
+	}
+</script>
+<script>
+	layui.use(['laypage', "upload"], function () {
+		var laypage = layui.laypage;
+		var upload = layui.upload;
+
+		//执行一个laypage实例
+		laypage.render({
+			elem: 'pagination', //注意，这里的 test1 是 ID，不用加 # 号
+			count: `{{ total }}`, //数据总数，从服务端得到
+			limit: 10,
+			curr: `{{page}}`,
+			jump: function (obj, first) {
+				if (!first) {
+					window.location.href = `{{baseUrl | safe }}search/${obj.curr}?query={{query}}`;
+				}
+			}
+		});
+
+		$(".logoutButton").off("click").on("click", function () {
+			layer.confirm('确定退出当前账号吗?', {
+				btn: ['确定', '取消'] //可以无限个按钮
+			}, function (index, layero) {
+				document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path={{baseUrl | safe}}`;
+				window.location.href = `{{baseUrl | safe}}home/1`;
+			}, function (index) {
+				//按钮【按钮二】的回调
+			});
+		});
+
+		var uploadInst = upload.render({
+			elem: '#test1' //绑定元素
+			, url: '{{baseUrl | safe}}./upload/' //上传接口
+			, done: function (res) {
+				//上传完毕回调
+			}
+			, error: function () {
+				//请求异常回调
+			}
+		});
+	});
+	function logout(){
+		document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path={{baseUrl | safe}}`;
+		window.location.href = `{{baseUrl | safe}}home/1`;
+	}
+</script>
+<style>
+</style>
+</html>
