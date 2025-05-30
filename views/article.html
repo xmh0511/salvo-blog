@@ -7,7 +7,7 @@
 	<meta http-equiv="Content-Type" content="text/html; Charset=utf-8">
 	<meta http-equiv="Content-Language" content="zh-CN">
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-	<title>Blog - 文章</title>
+	<title>文章-{{info.title}}</title>
 	<script>
 		window.baseUrl = `{{ baseUrl | safe }}`;
 	</script>
@@ -111,9 +111,15 @@
 												class="layui-icon layui-icon-edit"></i>编辑</span>
 									</div>
 									{% endif %}
-									<div class="">
-										<span>修改时间:</span>
-										<span>{{item.update_time | date(format="%Y-%m-%d %H:%M") }}</span>
+									<div class="comment-time-in-bar">
+										<div>
+											<span>创建时间:</span>
+											<span>{{item.create_time | date(format="%Y-%m-%d %H:%M") }}</span>
+										</div>
+										<div class="comment-time-in-bar-item">
+											<span>修改时间:</span>
+											<span>{{item.update_time | date(format="%Y-%m-%d %H:%M") }}</span>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -182,6 +188,7 @@
 			flowChart: true,  // 默认不解析
 			sequenceDiagram: true,  // 默认不解析
 			htmlDecode : true,
+			placeholder:'发表评论',
             // markdown: "xxxx",     // dynamic set Markdown text
             path : "{{baseUrl | safe }}public/markdown/lib/",  // Autoload modules mode, codemirror, marked... dependents libs path
     });
@@ -193,6 +200,10 @@
 			var that = this;
 			let id = `{{info.id}}`
 			let comment = editor.getHTML();
+			if(comment.length===0){
+				layer.msg("请输入有效评论", { icon: 5 });
+				return;
+			}
 			let md_content = editor.getMarkdown();
 			layer.confirm('确定提交吗?', {
 				btn: ['确定', '取消'] //可以无限个按钮
@@ -240,7 +251,7 @@
 			const id = $(this).attr("data-id");
 			layer.open({
 				type: 2,
-				area: ['600px', '460px'],
+				area: ['800px', '460px'],
 				content: [`{{baseUrl | safe }}commentedit/${id}`, 'no'], //这里content是一个URL，如果你不想让iframe出现滚动条，你还可以content: ['http://sentsin.com', 'no']
 				success: function (layero, index) {
 					var iframeWin = window[layero.find('iframe')[0]['name']];
