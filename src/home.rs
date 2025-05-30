@@ -189,10 +189,7 @@ pub async fn home(
         .get::<String>("base_url")
         .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let page = match req.param::<u64>("page") {
-        Some(x) if x >= 1 => {
-            println!("has some page {x}");
-            x - 1
-        }
+        Some(x) if x >= 1 => x - 1,
         _ => {
             let uri = format!("{base_url}home/1");
             res.render(Redirect::other(uri));
