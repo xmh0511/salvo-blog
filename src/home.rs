@@ -1195,16 +1195,19 @@ pub async fn search(
         .get::<String>("base_url")
         .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
     let query_key = req.query("query").unwrap_or("");
+    //println!("raw query_key = {}",query_key);
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
             let query_key = query_key.url_encode();
+            //println!("encode query_key = {}",query_key);
             let uri = format!("{base_url}search/1/?query={query_key}");
             res.render(Redirect::other(uri));
             return Ok(());
         }
     };
-    let query_key = query_key.url_decode();
+    // let query_key = query_key.url_decode();
+    //println!("query_key = {}",query_key);
     let db = depot
         .get::<DatabaseConnection>("db_conn")
         .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
@@ -1281,11 +1284,13 @@ pub async fn search(
             }
         }
     };
+    let encoded_query_key = query_key.url_encode();
     context.insert("baseUrl", base_url);
     context.insert("login", &login_data);
     context.insert("articles", &data);
     context.insert("total", &total_count);
-    context.insert("query", &query_key);
+    context.insert("raw_query", &query_key);
+    context.insert("query", &encoded_query_key);
     context.insert("commentCount", &10);
     context.insert("page", &(page + 1));
     context.insert("hotArticles", &hot_list);

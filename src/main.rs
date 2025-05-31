@@ -10,7 +10,7 @@ use tokio::fs;
 use tera::{Context, Tera};
 
 use salvo::jwt_auth::{ConstDecoder, CookieFinder};
-use salvo::logging::Logger;
+//use salvo::logging::Logger;
 // use salvo::rate_limiter::{BasicQuota, FixedGuard, MokaStore, RateLimiter, RemoteIpIssuer};
 
 use home::{JwtClaims, UniformError};
@@ -434,7 +434,7 @@ async fn main() {
     tracing::info!("Listening on {}", bind_addr);
     let acceptor = TcpListener::new(bind_addr).bind().await;
     let service = Service::new(root_router)
-        .hoop(Logger::new())
+        //.hoop(Logger::new())
         .catcher(Catcher::default().hoop(Handle404(base_url, tera)));
     Server::new(acceptor).serve(service).await;
 }

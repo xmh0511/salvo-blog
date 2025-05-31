@@ -1260,3 +1260,17 @@ body {
 .login-operation-group .layui-form-checkbox{
 	margin-top: 0px !important;
 }
+
+.search-input{
+	width:50%;
+	display: flex;
+}
+.search-input .layui-input-split.layui-input-suffix{
+	display: flex;
+	align-items: center;
+	padding:10px;
+	border: 1px solid;
+}
+.search-blog-body{
+	padding-top:68px;
+}

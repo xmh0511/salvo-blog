@@ -7,7 +7,7 @@
 	<meta http-equiv="Content-Type" content="text/html; Charset=utf-8">
 	<meta http-equiv="Content-Language" content="zh-CN">
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-	<title>搜索-{{query}}</title>
+	<title>搜索-{{raw_query}}</title>
 	<script>
 		window.baseUrl = `{{baseUrl | safe}}`;
 		//console.log(window.baseUrl)
@@ -29,12 +29,19 @@
 <body>
 	<!-- 导航 -->
 	<!-- 主体（一般只改变这里的内容） -->
-	<div class="blog-body">
-		<!-- canvas -->
-		<div class="canvas-banner-container">
-			<div class="canvas-filter"></div>
-			<canvas id="canvas-banner" style="background-image:url('{{baseUrl | safe}}public/images/xkbg.png');"></canvas>
+	<nav class="blog-nav layui-header">
+		<div class="blog-container">
+			<!-- QQ互联登陆 -->
+			<!-- 不落阁 -->
+			<a class="blog-logo" href="{{baseUrl | safe}}home/1">Blog</a>
+			<!-- 导航菜单 -->
+
+			<!-- 手机和平板的导航开关 -->
 		</div>
+	</nav>
+	<div class="blog-body search-blog-body">
+		<!-- canvas -->
+
 		<!--为了及时效果需要立即设置canvas宽高，否则就在home.js中设置-->
 		<script type="text/javascript">
 			var canvas = document.getElementById('canvas-banner');
@@ -50,10 +57,25 @@
 			<div class="blog-main">
 				<!-- 网站公告提示 -->
 				<div class="home-tips shadow">
-					<i style="float:left;line-height:17px;" class="fa fa-volume-up"></i>
+					<!-- <i style="float:left;line-height:17px;" class="fa fa-volume-up"></i>
 					<div class="home-tips-container">
 						<span>myblog</span>
-					</div>
+					</div> -->
+					<form class="layui-form">
+						<div class="layui-form-item">
+							<div class="layui-input-group search-input">
+								<input type="text" placeholder="搜索文章" name="query" class="layui-input">
+								<div class="layui-input-split layui-input-suffix" style="cursor: pointer;" lay-submit
+									lay-filter="search">
+									<i class="layui-icon layui-icon-search"></i>
+								</div>
+							</div>
+						</div>
+						<div class="layui-form-item" style="display: none;">
+							<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="search"
+								lay-submit>登录</button>
+						</div>
+					</form>
 				</div>
 				<!--左边文章列表-->
 				<div class="blog-main-left">
@@ -66,14 +88,15 @@
 						</div>
 						<div class="clear"></div>
 						<div class="article-footer">
-							<span><i
-									class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time | date(format="%Y-%m-%d %H:%M")}}</span>
+							<span><i class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time | date(format="%Y-%m-%d
+								%H:%M")}}</span>
 							<span class="article-author"><i class="fa fa-user"></i>&nbsp;&nbsp;{{item.userName}}</span>
 							<span><i class="fa fa-tag"></i>&nbsp;&nbsp;<a href="#">{{item.tagName}}</a></span>
 							<span class="article-viewinfo"><i class="fa fa-eye"></i>&nbsp;{{item.read_count}}</span>
 							<span class="article-viewinfo"><i
 									class="fa fa-commenting"></i>&nbsp;{{item.commentCount}}</span>
-							<span class="article-viewinfo"><i class="layui-icon layui-icon-diamond"></i>&nbsp;{{item.level}}</span>
+							<span class="article-viewinfo"><i
+									class="layui-icon layui-icon-diamond"></i>&nbsp;{{item.level}}</span>
 						</div>
 					</div>
 					{% endfor %}
@@ -100,13 +123,16 @@
 							<div class="person-box-item">
 								<p class="blogerinfo-nickname">
 									<a href="{{baseUrl | safe}}add">
-										<button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
+										<button
+											class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
 									</a>
-									<button class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
+									<button
+										class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
 										<i class="layui-icon layui-icon-logout"></i>
 									</button>
 								</p>
-								<p><a class="post-counter" href="{{baseUrl | safe}}list/1"><span>帖子:</span>{{login.post_count}}</a></p>
+								<p><a class="post-counter"
+										href="{{baseUrl | safe}}list/1"><span>帖子:</span>{{login.post_count}}</a></p>
 							</div>
 						</div>
 						<hr />
@@ -154,7 +180,8 @@
 					<a href="{{baseUrl | safe}}register" class="layui-link pull-right">注册账号</a>
 				</div>
 				<div class="layui-form-item login-button-box">
-					<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="loginSubmit" lay-submit>登录</button>
+					<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="loginSubmit"
+						lay-submit>登录</button>
 					<button class="layui-btn layui-btn-fluid layui-btn-primary" onclick="cancelBox(event)">取消</button>
 				</div>
 			</form>
@@ -181,9 +208,10 @@
 	}
 </script>
 <script>
-	layui.use(['laypage', "upload"], function () {
+	layui.use(['laypage', "upload", 'form'], function () {
 		var laypage = layui.laypage;
 		var upload = layui.upload;
+		var form = layui.form;
 
 		//执行一个laypage实例
 		laypage.render({
@@ -209,6 +237,17 @@
 			});
 		});
 
+		form.on('submit(search)', function (data) {
+
+			var field = data.field; // 获取表单字段值
+
+			const search_key = encodeURIComponent(field.query);
+			window.location.href = `{{baseUrl | safe}}search/1?query=${search_key}`;
+
+			return false; // 阻止默认 form 跳转
+
+		});
+
 		var uploadInst = upload.render({
 			elem: '#test1' //绑定元素
 			, url: '{{baseUrl | safe}}./upload/' //上传接口
@@ -220,11 +259,12 @@
 			}
 		});
 	});
-	function logout(){
+	function logout() {
 		document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path={{baseUrl | safe}}`;
 		window.location.href = `{{baseUrl | safe}}home/1`;
 	}
 </script>
 <style>
 </style>
+
 </html>
