@@ -12,7 +12,7 @@ salvo = { version = "0.79.0", features = [
     "jwt-auth",
     #"rate-limiter",
     "compression",
-    "logging",
+    #"logging",
 ] }
 tokio = { version = "1.45.1", features = ["macros"] }
 sea-orm = { version = "1.1.12", features = [
