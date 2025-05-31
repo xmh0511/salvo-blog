@@ -1,6 +1,6 @@
 {
 	"base_url":"/",
-	"database_url":"mysql://root:5322977bbLL.@101.35.230.139/blog",
+	"database_url":"mysql://root:970252187@localhost/blog",
 	"bind_addr":"0.0.0.0:8080",
 	"secret_key":"130ae5ac67bb6c7ecfe1f2924076964b130ae5ac67bb6c7ecfe1f2924076964b"
 }
