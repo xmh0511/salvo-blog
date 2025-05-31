@@ -1262,7 +1262,8 @@ body {
 }
 
 .search-input{
-	width:50%;
+	width:100%;
+	max-width: 500px;
 	display: flex;
 }
 .search-input .layui-input-split.layui-input-suffix{
