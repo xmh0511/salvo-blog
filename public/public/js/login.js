@@ -60,23 +60,32 @@ layui.use(['jquery', 'layer', 'form'], function () {
 				layer.msg(res.msg, { icon: 5 });
 				$('img.login-captcha').trigger('click');
 			}
-		}, 'JSON');
+		},'JSON').fail(function(res){
+			layer.closeAll('loading');
+			layer.msg(res.responseJSON.msg, { icon: 5 });
+		});
 		return false;
 	});
 
 	//找回密码
 	form.on('submit(forgetSubmit)', function (obj) {
 		layer.load(2);
-		$.post('forgetPwd', obj.field, function (res) {
+		$.post({url:`${window.baseUrl}forget`,headers:{"Content-type":"application/x-www-form-urlencoded"}}, obj.field, function (res) {
+			console.log(res)
 			if (200 === res.code) {
+				//console.log(res);
 				layer.msg(res.msg, { icon: 1, time: 1500 }, function () {
-					location.replace('/login');
+					location.replace(`${window.baseUrl}login`);
 				});
 			} else {
 				layer.closeAll('loading');
 				layer.msg(res.msg, { icon: 5 });
+				$('img.login-captcha').trigger('click');
 			}
-		}, 'JSON');
+		},'JSON').fail(function(res){
+			layer.closeAll('loading');
+			layer.msg(res.responseJSON.msg, { icon: 5 });
+		});
 		return false;
 	});
 
@@ -89,7 +98,9 @@ layui.use(['jquery', 'layer', 'form'], function () {
 	//邮箱验证
 	var checkCode = "";//验证码
 
-	$("#sendCheckCode").click(function () {
+	$("#sendCheckCode").click(function (e) {
+		e.stopPropagation();
+		e.preventDefault(); 
 		var email = $("#email").val();
 		if (email == null || email == "") {
 			layer.msg("请输入邮箱账号");
@@ -99,15 +110,16 @@ layui.use(['jquery', 'layer', 'form'], function () {
 			type: 3,
 			content: "邮件发送中..."
 		});
-
 		$.ajax({
-			url: "/getCheckCode?email=" + email,
-			type: "get",
-			success: function (text) {
-				if (text != null && text != "") {
+			url: `${window.baseUrl}sendcode`,
+			headers:{"Content-type":"application/x-www-form-urlencoded"},
+			type: 'POST', 
+			data:`email=${email}`,  //970252187@qq.com
+			success: function (res) {
+				console.log(res);
+				if (res.code==200) {
 					layer.close(index);
 					layer.msg("已发送");
-					checkCode = text;
 					countDown();
 				} else {
 					layer.alert("获取失败，请重新获取")

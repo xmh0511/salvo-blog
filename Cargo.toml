@@ -36,4 +36,8 @@ chrono = "0.4.41"
 tracing-appender = "0.2.3"
 time = { version = "0.3.41", features = ["macros"] }
 url_encor = "1.0.3"
+redis = { version = "0.32.0", features = ["tokio-comp"] }
+resend-rs = "0.15.0"
+rand = "0.9.1"
+checkmail = "0.1.1"
 #url = "2.5.4"

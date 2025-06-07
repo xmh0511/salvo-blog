@@ -55,6 +55,41 @@ impl Handler for BaseUrlInjector {
         ctrl.call_next(req, depot, res).await;
     }
 }
+
+#[derive(Clone)]
+struct RedisUrlInjector(String);
+
+#[async_trait]
+impl Handler for RedisUrlInjector {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        depot.insert("redis_url", self.0.clone());
+        ctrl.call_next(req, depot, res).await;
+    }
+}
+
+#[derive(Clone)]
+struct ReSendKeyInjector(String);
+
+#[async_trait]
+impl Handler for ReSendKeyInjector {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
+        depot.insert("resend_key", self.0.clone());
+        ctrl.call_next(req, depot, res).await;
+    }
+}
+
 #[derive(Clone)]
 struct TemplateEngineInjection(Tera);
 #[async_trait]
@@ -279,6 +314,18 @@ async fn main() {
     let database_url = json_v.get("database_url").unwrap().as_str().unwrap();
     let bind_addr = json_v.get("bind_addr").unwrap().as_str().unwrap();
     let secret_key = json_v.get("secret_key").unwrap().as_str().unwrap();
+    let redis_url = json_v
+        .get("redis_url")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let resend_key = json_v
+        .get("resend_key")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_owned();
 
     let mut db_opt = ConnectOptions::new(database_url.to_owned());
     if cfg!(debug_assertions) {
@@ -356,6 +403,15 @@ async fn main() {
             .get(home::register)
             .post(home::post_register),
     );
+    let router = router.push(
+        Router::with_path("forget")
+            .get(home::forgetpass)
+            .post(home::post_forget),
+    );
+
+    let router = router.push(Router::with_path("sendcode").post(home::sendcode));
+
+    // let router = router.push(Router::with_path("getcode").post(home::getcode));
 
     let router = router.push(Router::with_path("article/{id}").get(home::read_article));
 
@@ -428,6 +484,8 @@ async fn main() {
         .hoop(TemplateEngineInjection(tera.clone()))
         .hoop(BaseUrlInjector(base_url.clone()))
         .hoop(SecretKeyForJWT(secret_key.to_owned()))
+        .hoop(RedisUrlInjector(redis_url.to_owned()))
+        .hoop(ReSendKeyInjector(resend_key.to_owned()))
         .push(router)
         .push(router_static_asserts);
 

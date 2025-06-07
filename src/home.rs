@@ -2,6 +2,8 @@ mod database;
 
 use database::prelude::*;
 
+use redis::TypedCommands;
+use resend_rs::{Resend, types::CreateEmailBaseOptions};
 use salvo::prelude::*;
 use sea_orm::{DatabaseBackend, DatabaseConnection, EntityTrait, JsonValue, Statement, prelude::*};
 
@@ -485,6 +487,32 @@ pub async fn post_register(
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
     let confirm_pass = req.form::<String>("password2").await.to_result()?;
+    let email = req
+        .form::<String>("email")
+        .await
+        .ok_or(anyhow::anyhow!("email is required"))?;
+    let email_code = req
+        .form::<String>("code")
+        .await
+        .ok_or(anyhow::anyhow!("code is required"))?;
+
+    let redis_url = depot
+        .get::<String>("redis_url")
+        .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
+    let client = redis::Client::open(redis_url.as_str())?;
+    let mut con = client.get_connection()?;
+    let code = con
+        .get(&email)?
+        .ok_or(anyhow::anyhow!("未通过邮箱验证, 未找到邮箱的验证码"))?;
+    if code != email_code {
+        let r = json!({
+            "code":400,
+            "msg":"邮箱验证码错误"
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
+    }
+
     if pass.chars().count() < 6 {
         let r = json!({
             "code":400,
@@ -500,48 +528,151 @@ pub async fn post_register(
         });
         res.render(Text::Json(r.to_string()));
         return Ok(());
+    }
+
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let count = UserTb::find()
+        .filter(user_tb::Column::Name.eq(name.clone()))
+        .count(db)
+        .await?;
+    if count != 0 {
+        let r = json!({
+            "code":400,
+            "msg":"用户名已存在"
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
     } else {
-        let db = depot
-            .get::<DatabaseConnection>("db_conn")
-            .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
-        let count = UserTb::find()
-            .filter(user_tb::Column::Name.eq(name.clone()))
-            .count(db)
-            .await?;
-        if count != 0 {
-            let r = json!({
-                "code":400,
-                "msg":"用户名已存在"
-            });
-            res.render(Text::Json(r.to_string()));
-            return Ok(());
-        } else {
-            let mut add_user = user_tb::ActiveModel::new();
-            add_user.avatar = ActiveValue::set(None);
-            let time_now = Local::now();
-            add_user.create_time = ActiveValue::set(Some(time_now.naive_local()));
-            add_user.email = ActiveValue::set(None);
-            add_user.name = ActiveValue::set(Some(name));
-            let pass = format!("{:?}", md5::compute(pass));
-            add_user.password = ActiveValue::set(Some(pass));
-            add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
-            add_user.privilege = ActiveValue::set(Some(2));
-            let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
-            let secret_key = depot
-                .get::<String>("secret_key")
-                .map_err(|_| anyhow::anyhow!("failed to acquire signing key"))?;
-            let token = generate_token_by_user_id(secret_key, r, false).await?;
-            let base_url = depot
-                .get::<String>("base_url")
-                .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-            let r = json!({
-               "code":200,
-               "token":token,
-               "msg":"注册成功",
-               "baseUrl":base_url
-            });
-            res.render(Text::Json(r.to_string()));
-        }
+        let mut add_user = user_tb::ActiveModel::new();
+        add_user.avatar = ActiveValue::set(None);
+        let time_now = Local::now();
+        add_user.create_time = ActiveValue::set(Some(time_now.naive_local()));
+        add_user.email = ActiveValue::set(Some(email));
+        add_user.name = ActiveValue::set(Some(name));
+        let pass = format!("{:?}", md5::compute(pass));
+        add_user.password = ActiveValue::set(Some(pass));
+        add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
+        add_user.privilege = ActiveValue::set(Some(2));
+        let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
+        let secret_key = depot
+            .get::<String>("secret_key")
+            .map_err(|_| anyhow::anyhow!("failed to acquire signing key"))?;
+        let token = generate_token_by_user_id(secret_key, r, false).await?;
+        let base_url = depot
+            .get::<String>("base_url")
+            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+        let r = json!({
+           "code":200,
+           "token":token,
+           "msg":"注册成功",
+           "baseUrl":base_url
+        });
+        res.render(Text::Json(r.to_string()));
+    }
+    Ok(())
+}
+
+#[handler]
+pub async fn forgetpass(
+    _req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError> {
+    let base_url = depot
+        .get::<String>("base_url")
+        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let tera = depot
+        .get::<Tera>("tera")
+        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let mut context = Context::new();
+    context.insert("baseUrl", base_url);
+    let r = tera.render("forget.html", &context)?;
+    res.render(Text::Html(r));
+    Ok(())
+}
+
+#[handler]
+pub async fn post_forget(
+    req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
+    let name = req.form::<String>("nickName").await.to_result()?;
+    let pass = req.form::<String>("password").await.to_result()?;
+    let confirm_pass = req.form::<String>("password2").await.to_result()?;
+    let email = req
+        .form::<String>("email")
+        .await
+        .ok_or(anyhow::anyhow!("email is required"))?;
+    let email_code = req
+        .form::<String>("code")
+        .await
+        .ok_or(anyhow::anyhow!("code is required"))?;
+
+    let redis_url = depot
+        .get::<String>("redis_url")
+        .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
+    let client = redis::Client::open(redis_url.as_str())?;
+    let mut con = client.get_connection()?;
+    let code = con
+        .get(&email)?
+        .ok_or(anyhow::anyhow!("未通过邮箱验证, 未找到邮箱的验证码"))?;
+    if code != email_code {
+        let r = json!({
+            "code":400,
+            "msg":"邮箱验证码错误"
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
+    }
+
+    if pass.chars().count() < 6 {
+        let r = json!({
+            "code":400,
+            "msg":"密码长度少于6位"
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
+    }
+    if pass != confirm_pass {
+        let r = json!({
+            "code":400,
+            "msg":"密码不一致"
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
+    }
+
+    let db = depot
+        .get::<DatabaseConnection>("db_conn")
+        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let user = UserTb::find()
+        .filter(user_tb::Column::Name.eq(name.clone()))
+        .filter(user_tb::Column::Email.eq(&email))
+        .one(db)
+        .await?;
+    if let Some(user) = user {
+        let mut user = user_tb::ActiveModel::from(user);
+        let pass = format!("{:?}", md5::compute(pass));
+        user.password = ActiveValue::set(Some(pass));
+        user.update(db).await?;
+        let base_url = depot
+            .get::<String>("base_url")
+            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+        let r = json!({
+           "code":200,
+           "msg":"重置账号成功",
+           "baseUrl":base_url
+        });
+        res.render(Text::Json(r.to_string()));
+    } else {
+        let r = json!({
+            "code":400,
+            "msg":"重置的用户不存在或与邮箱不匹配"
+        });
+        res.render(Text::Json(r.to_string()));
     }
     Ok(())
 }
@@ -1212,17 +1343,23 @@ pub async fn search(
         .get::<DatabaseConnection>("db_conn")
         .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
     let query_condition = format!("%{query_key}%");
+    let possible_tags = TagTb::find()
+        .filter(tag_tb::Column::Name.like(&query_condition))
+        .all(db)
+        .await?;
+    let mut filter_condition = Condition::any().add(
+        article_tb::Column::Title
+            .like(&query_condition)
+            .add(article_tb::Column::Content.like(&query_condition)),
+    );
+    for tag in possible_tags {
+        filter_condition = filter_condition.add(article_tb::Column::TagId.eq(tag.id));
+    }
     let pagination = ArticleTb::find()
         .order_by_desc(article_tb::Column::UpdateTime)
         .filter(article_tb::Column::ArticleState.eq(1))
         .filter(article_tb::Column::Level.ne(999))
-        .filter(
-            Condition::any().add(
-                article_tb::Column::Title
-                    .like(&query_condition)
-                    .add(article_tb::Column::Content.like(&query_condition)),
-            ),
-        )
+        .filter(filter_condition)
         .into_json()
         .paginate(db, 10);
 
@@ -1298,3 +1435,81 @@ pub async fn search(
     res.render(Text::Html(r));
     Ok(())
 }
+
+fn gen_code() -> String {
+    [
+        rand::random_range(0..9).to_string(),
+        rand::random_range(0..9).to_string(),
+        rand::random_range(0..9).to_string(),
+        rand::random_range(0..9).to_string(),
+    ]
+    .join("")
+}
+
+#[handler]
+pub async fn sendcode(
+    req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError> {
+    let email = req
+        .form::<String>("email")
+        .await
+        .ok_or(anyhow::anyhow!("email is required"))?;
+    if checkmail::validate_email(&email) == false {
+        let r = json!({
+            "code":400,
+            "msg":"无效的邮箱"
+        });
+        res.render(Text::Json(r.to_string()));
+        return Ok(());
+    }
+    let resend_key = depot
+        .get::<String>("resend_key")
+        .map_err(|_| anyhow::anyhow!("email system is not ready for resend"))?;
+    let redis_url = depot
+        .get::<String>("redis_url")
+        .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
+    let client = redis::Client::open(redis_url.as_str())?;
+    let mut con = client.get_connection()?;
+    let code = gen_code();
+    con.set_ex(&email, &code, 5 * 60)?;
+
+    let resend = Resend::new(resend_key);
+    let from = "Blog <blog@resend.dev>";
+    let to = [email];
+    let subject = "你好，邮箱验证码";
+    let html = format!("<p>验证码5分钟内有效, 你的验证码：{}</p>", code);
+    let email = CreateEmailBaseOptions::new(from, to, subject).with_html(&html);
+    let _email = resend.emails.send(email).await?;
+
+    let r = json!({
+        "code":200,
+    });
+    res.render(Text::Json(r.to_string()));
+    Ok(())
+}
+
+// #[handler]
+// pub async fn getcode(
+//     req: &mut Request,
+//     res: &mut Response,
+//     depot: &mut Depot,
+// ) -> Result<(), UniformError> {
+//     let email = req
+//         .form::<String>("email")
+//         .await
+//         .ok_or(anyhow::anyhow!("email is required"))?;
+//     let redis_url = depot
+//         .get::<String>("redis_url")
+//         .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
+//     let client = redis::Client::open(redis_url.as_str())?;
+//     let mut con = client.get_connection()?;
+//     let code = con.get(&email)?;
+//     let r = json!({
+//         "code":200,
+//         "msg":&code
+//     });
+//     res.render(Text::Json(r.to_string()));
+//     Ok(())
+// }

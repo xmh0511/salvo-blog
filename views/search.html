@@ -43,15 +43,6 @@
 		<!-- canvas -->
 
 		<!--为了及时效果需要立即设置canvas宽高，否则就在home.js中设置-->
-		<script type="text/javascript">
-			var canvas = document.getElementById('canvas-banner');
-			canvas.width = window.document.body.clientWidth - 10;//减去滚动条的宽度
-			if (screen.width >= 992) {
-				canvas.height = window.innerHeight * 1 / 2;
-			} else {
-				canvas.height = window.innerHeight * 2 / 7;
-			}
-		</script>
 		<!-- 这个一般才是真正的主体内容 -->
 		<div class="blog-container">
 			<div class="blog-main">
@@ -196,7 +187,7 @@
 	<!-- 全局脚本 -->
 	<script src="{{baseUrl | safe}}public/js/global.js"></script>
 	<!-- 本页脚本 -->
-	<script src="{{baseUrl | safe}}public/js/home.js"></script>
+	<!-- <script src="{{baseUrl | safe}}public/js/home.js"></script> -->
 </body>
 <script>
 	function toLogin() {

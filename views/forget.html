@@ -7,7 +7,7 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta http-equiv="Content-Language" content="zh-CN">
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-	<title>用户注册</title>
+	<title>忘记密码</title>
 	<script>
 		window.baseUrl = `{{baseUrl | safe }}`;
 	</script>
@@ -21,7 +21,7 @@
 
 	<div class="login-wrapper layui-anim layui-anim-scale">
 		<form class="layui-form">
-			<h2>用户注册</h2>
+			<h2>重置密码</h2>
 			<div class="layui-form-item layui-input-icon-group">
 				<i class="layui-icon layui-icon-user"></i>
 				<input class="layui-input" name="nickName" placeholder="请输入用户昵称" autocomplete="off" lay-verType="tips"
@@ -56,7 +56,7 @@
 				<!-- <a th:href="@{/forget}" class="layui-link pull-right">忘记密码</a> -->
 			</div>
 			<div class="layui-form-item" style="margin-bottom: 20px;">
-				<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="regSubmit" lay-submit>注册</button>
+				<button class="layui-btn layui-btn-fluid layui-btn-normal" lay-filter="forgetSubmit" lay-submit>重置</button>
 			</div>
 		</form>
 	</div>
