@@ -164,3 +164,8 @@ body {
 .layui-layer-content.layui-layer-padding{
     height:24px;
 }
+
+#email{
+    display: inline-block;
+    width:69%;
+}

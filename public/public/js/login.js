@@ -108,7 +108,7 @@ layui.use(['jquery', 'layer', 'form'], function () {
 		}
 		var index = layer.open({
 			type: 3,
-			content: "邮件发送中..."
+			content: "发送中..."
 		});
 		$.ajax({
 			url: `${window.baseUrl}sendcode`,
@@ -140,7 +140,7 @@ layui.use(['jquery', 'layer', 'form'], function () {
 			$("#sendCheckCode").attr("disabled", "disabled");
 			$("#sendCheckCode").addClass("layui-btn-disabled");
 			form.render();
-			$("#sendCheckCode").html(maxTime + "秒后重新获取");
+			$("#sendCheckCode").html(maxTime + "秒后重试");
 			maxTime--;
 			setTimeout(countDown, 1000);
 		}
