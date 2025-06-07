@@ -657,6 +657,8 @@ pub async fn post_forget(
         let mut user = user_tb::ActiveModel::from(user);
         let pass = format!("{:?}", md5::compute(pass));
         user.password = ActiveValue::set(Some(pass));
+        let time_now = Local::now();
+        user.update_time = ActiveValue::set(Some(time_now.naive_local()));
         user.update(db).await?;
         let base_url = depot
             .get::<String>("base_url")
@@ -1456,7 +1458,7 @@ pub async fn sendcode(
         .form::<String>("email")
         .await
         .ok_or(anyhow::anyhow!("email is required"))?;
-    if checkmail::validate_email(&email) == false {
+    if !checkmail::validate_email(&email) {
         let r = json!({
             "code":400,
             "msg":"无效的邮箱"
