@@ -37,6 +37,7 @@ body {
 	left: 50%;
 	max-width: 450px;
 	translate: -50%;
+	transform: translateX(-50%) !important;
 }
 
 .login-button-box {
