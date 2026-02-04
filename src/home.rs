@@ -1179,7 +1179,7 @@ pub async fn shadow_article(
         .to_result()?;
     let state = model.article_state.unwrap_or(1);
     let mut model = article_tb::ActiveModel::from(model);
-    // Toggle state: 1 -> 0, any other value -> 1
+    // Toggle article state between visible (1) and hidden (0)
     model.article_state = ActiveValue::set(Some(if state == 1 { 0 } else { 1 }));
     model.update_time = ActiveValue::set(Some(get_current_time()));
     model.update(db).await?;
