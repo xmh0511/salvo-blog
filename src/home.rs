@@ -92,13 +92,20 @@ impl<const ERRORCODE: u8> Writer for UniformError<ERRORCODE> {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let err = self.0.to_string();
         if ERRORCODE == 1 {
-            let tera = get_tera();
-            let base_url = get_base_url();
-            let context = construct_context!["code"=>404,"msg"=>err,"baseUrl"=>base_url];
-            let r = tera.render("404.html", &context).unwrap_or(err);
-
-            res.status_code(StatusCode::BAD_REQUEST)
-                .render(Text::Html(r));
+            // Try to get tera and base_url, fall back to plain text if not available
+            match (get_tera::<ERRORCODE>(), get_base_url::<ERRORCODE>()) {
+                (Ok(tera), Ok(base_url)) => {
+                    let context = construct_context!["code"=>404,"msg"=>err,"baseUrl"=>base_url];
+                    let r = tera.render("404.html", &context).unwrap_or(err);
+                    res.status_code(StatusCode::BAD_REQUEST)
+                        .render(Text::Html(r));
+                }
+                _ => {
+                    // If globals not initialized, return plain text error
+                    res.status_code(StatusCode::BAD_REQUEST)
+                        .render(Text::Plain(err));
+                }
+            }
         } else {
             let r = json!({
                 "code":400,
@@ -124,28 +131,29 @@ impl<T> ConverOptionToResult<T> for Option<T> {
 }
 
 // Helper functions to access static global resources
-fn get_db() -> &'static DatabaseConnection {
-    DB.get().expect("DB not initialized")
+// These return Result to allow graceful error handling instead of panic
+fn get_db<const E: u8>() -> Result<&'static DatabaseConnection, UniformError<E>> {
+    DB.get().ok_or_else(|| anyhow::anyhow!("Database connection not initialized").into())
 }
 
-fn get_base_url() -> &'static str {
-    BASE_URL.get().expect("BASE_URL not initialized")
+fn get_base_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    BASE_URL.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Base URL not initialized").into())
 }
 
-fn get_tera() -> &'static Tera {
-    TERA.get().expect("TERA not initialized")
+fn get_tera<const E: u8>() -> Result<&'static Tera, UniformError<E>> {
+    TERA.get().ok_or_else(|| anyhow::anyhow!("Template engine not initialized").into())
 }
 
-fn get_secret_key() -> &'static str {
-    SECRET_KEY.get().expect("SECRET_KEY not initialized")
+fn get_secret_key<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    SECRET_KEY.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Secret key not initialized").into())
 }
 
-fn get_redis_url() -> &'static str {
-    REDIS_URL.get().expect("REDIS_URL not initialized")
+fn get_redis_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    REDIS_URL.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Redis URL not initialized").into())
 }
 
-fn get_resend_key() -> &'static str {
-    RESEND_KEY.get().expect("RESEND_KEY not initialized")
+fn get_resend_key<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    RESEND_KEY.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Resend key not initialized").into())
 }
 
 fn get_current_time() -> chrono::NaiveDateTime {
@@ -248,7 +256,7 @@ pub async fn home(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
@@ -257,14 +265,14 @@ pub async fn home(
             return Ok(());
         }
     };
-    let db = get_db();
+    let db = get_db()?;
     let pagination = ArticleTb::find()
         .order_by_desc(article_tb::Column::UpdateTime)
         .filter(article_tb::Column::ArticleState.eq(1))
         .filter(article_tb::Column::Level.ne(999))
         .into_json()
         .paginate(db, 10);
-    let tera = get_tera();
+    let tera = get_tera()?;
     let total_count = pagination.num_items().await?;
     let total_pages = pagination.num_pages().await?;
     if page != 0 && (page + 1) > total_pages {
@@ -337,8 +345,8 @@ pub async fn render_login_view(
     _req: &mut Request,
     res: &mut Response,
 ) -> Result<(), UniformError> {
-    let base_url = get_base_url();
-    let tera = get_tera();
+    let base_url = get_base_url()?;
+    let tera = get_tera()?;
     let context = construct_context!["baseUrl"=>base_url];
     let r = tera.render("login.html", &context)?;
     res.render(Text::Html(r));
@@ -355,8 +363,8 @@ pub async fn login(
     let remember_me = req.form::<String>("rememberMe").await.to_result()?;
     let pass = md5::compute(pass);
     let pass = format!("{:?}", pass);
-    let db = get_db();
-    let base_url = get_base_url();
+    let db = get_db()?;
+    let base_url = get_base_url()?;
     let Some(r) = UserTb::find()
         .filter(user_tb::Column::Name.eq(name.clone()))
         .filter(user_tb::Column::Password.eq(pass))
@@ -372,7 +380,7 @@ pub async fn login(
         return Ok(());
     };
     let remember = remember_me.trim() == "true";
-    let secret_key = get_secret_key();
+    let secret_key = get_secret_key()?;
     let token = generate_token_by_user_id(secret_key, r.id, remember).await?;
     let r = json!({
        "code":200,
@@ -390,7 +398,7 @@ pub async fn person_list(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
@@ -401,7 +409,7 @@ pub async fn person_list(
     };
     let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
     let user_id = data.claims.user_id.clone();
-    let db = get_db();
+    let db = get_db()?;
     let offset = page * 10;
     let sql = r#"SELECT
 	R.AID,
@@ -437,7 +445,7 @@ GROUP BY
 ORDER BY
 	R.update_time DESC
 	LIMIT ?, 10"#;
-    let tera = get_tera();
+    let tera = get_tera()?;
     let total_count = ArticleTb::find()
         .filter(article_tb::Column::UserId.eq(user_id.as_str()))
         .count(db)
@@ -499,8 +507,8 @@ pub async fn register(
     _req: &mut Request,
     res: &mut Response,
 ) -> Result<(), UniformError> {
-    let base_url = get_base_url();
-    let tera = get_tera();
+    let base_url = get_base_url()?;
+    let tera = get_tera()?;
     let mut context = Context::new();
     context.insert("baseUrl", base_url);
     let r = tera.render("reg.html", &context)?;
@@ -525,7 +533,7 @@ pub async fn post_register(
         .await
         .ok_or(anyhow::anyhow!("code is required"))?;
 
-    let redis_url = get_redis_url();
+    let redis_url = get_redis_url()?;
     let client = redis::Client::open(redis_url)?;
     let mut con = client.get_connection()?;
     let code = con
@@ -557,7 +565,7 @@ pub async fn post_register(
         return Ok(());
     }
 
-    let db = get_db();
+    let db = get_db()?;
     let count = UserTb::find()
         .filter(user_tb::Column::Name.eq(name.clone()))
         .count(db)
@@ -581,9 +589,9 @@ pub async fn post_register(
         add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
         add_user.privilege = ActiveValue::set(Some(2));
         let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
-        let secret_key = get_secret_key();
+        let secret_key = get_secret_key()?;
         let token = generate_token_by_user_id(secret_key, r, false).await?;
-        let base_url = get_base_url();
+        let base_url = get_base_url()?;
         let r = json!({
            "code":200,
            "token":token,
@@ -600,8 +608,8 @@ pub async fn forgetpass(
     _req: &mut Request,
     res: &mut Response,
 ) -> Result<(), UniformError> {
-    let base_url = get_base_url();
-    let tera = get_tera();
+    let base_url = get_base_url()?;
+    let tera = get_tera()?;
     let mut context = Context::new();
     context.insert("baseUrl", base_url);
     let r = tera.render("forget.html", &context)?;
@@ -626,7 +634,7 @@ pub async fn post_forget(
         .await
         .ok_or(anyhow::anyhow!("code is required"))?;
 
-    let redis_url = get_redis_url();
+    let redis_url = get_redis_url()?;
     let client = redis::Client::open(redis_url)?;
     let mut con = client.get_connection()?;
     let code = con
@@ -658,7 +666,7 @@ pub async fn post_forget(
         return Ok(());
     }
 
-    let db = get_db();
+    let db = get_db()?;
     let user = UserTb::find()
         .filter(user_tb::Column::Name.eq(name.clone()))
         .filter(user_tb::Column::Email.eq(&email))
@@ -671,7 +679,7 @@ pub async fn post_forget(
         let time_now = Local::now();
         user.update_time = ActiveValue::set(Some(time_now.naive_local()));
         user.update(db).await?;
-        let base_url = get_base_url();
+        let base_url = get_base_url()?;
         let r = json!({
            "code":200,
            "msg":"重置账号成功",
@@ -765,7 +773,7 @@ pub async fn read_article(
 ) -> Result<(), UniformError> {
     let article_id: i32 = req.param("id").to_result()?;
 
-    let db = get_db();
+    let db = get_db()?;
 
     let article_model = get_article_and_author_by_article_id(article_id, db).await?;
 
@@ -775,9 +783,9 @@ pub async fn read_article(
         .as_u64()
         .to_result()?;
 
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
 
-    let tera = get_tera();
+    let tera = get_tera()?;
     match depot.jwt_auth_state() {
         JwtAuthState::Authorized => {
             let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
@@ -867,12 +875,12 @@ pub async fn delete_comment(
         .claims
         .user_id;
     let identifier = identifier.as_str();
-    let db = get_db();
+    let db = get_db()?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .count(db)
         .await?;
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
     if r == 1 {
         let _ = CommentTb::delete_by_id(comment_id).exec(db).await?;
         let r = json!({
@@ -904,14 +912,14 @@ pub async fn edit_comment(
         .claims
         .user_id;
     let identifier = identifier.as_str();
-    let db = get_db();
+    let db = get_db()?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .into_json()
         .one(db)
         .await?;
-    let tera = get_tera();
-    let base_url = get_base_url();
+    let tera = get_tera()?;
+    let base_url = get_base_url()?;
     if let Some(x) = r {
         let context = construct_context!["info"=>x,"baseUrl"=>base_url];
         let r = tera.render("editcomment.html", &context)?;
@@ -934,7 +942,7 @@ pub async fn save_edit_comment(
     let comment_id = req.param::<i32>("id").to_result()?;
     let comment: String = req.form("comment").await.to_result()?;
     let md_content: String = req.form("md_content").await.to_result()?;
-    let db = get_db();
+    let db = get_db()?;
     let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
@@ -942,7 +950,7 @@ pub async fn save_edit_comment(
         .user_id;
     let identifier = identifier.as_str();
     //let tera = depot.get::<Tera>("tera").to_result()?;
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
     let model = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .one(db)
@@ -991,7 +999,7 @@ pub async fn add_comment(
     model.md_content = ActiveValue::set(Some(md_comment));
     model.update_time = now;
     model.user_id = ActiveValue::set(Some(identifier));
-    let db = get_db();
+    let db = get_db()?;
     let _ = model.insert(db).await?;
     let r = json!({
         "code":200
@@ -1034,12 +1042,12 @@ pub async fn render_add_article_view(
     _req: &mut Request,
     res: &mut Response,
 ) -> Result<(), UniformError> {
-    let base_url = get_base_url();
-    let db = get_db();
+    let base_url = get_base_url()?;
+    let db = get_db()?;
     let tags = TagTb::find().into_json().all(db).await?;
     let levels = LevelTb::find().into_json().all(db).await?;
     let context = construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url];
-    let tera = get_tera();
+    let tera = get_tera()?;
     let r = tera.render("add.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1068,8 +1076,8 @@ pub async fn add_article(
             .claims
             .user_id;
         let identifier = identifier.as_str();
-        let base_url = get_base_url();
-        let db = get_db();
+        let base_url = get_base_url()?;
+        let db = get_db()?;
         let mut model = article_tb::ActiveModel::new();
         model.article_state = ActiveValue::set(Some(1));
         model.content = ActiveValue::set(Some(content));
@@ -1106,9 +1114,9 @@ pub async fn render_article_edit_view(
 
     let identifier = identifier.as_str();
 
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
 
-    let db = get_db();
+    let db = get_db()?;
 
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier))
@@ -1121,7 +1129,7 @@ pub async fn render_article_edit_view(
     let levels = LevelTb::find().into_json().all(db).await?;
     let context =
         construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url,"article"=>model];
-    let tera = get_tera();
+    let tera = get_tera()?;
     let r = tera.render("edit.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1140,9 +1148,9 @@ pub async fn edit_article(
         .to_result()?
         .claims
         .user_id;
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
 
-    let db = get_db();
+    let db = get_db()?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -1180,8 +1188,8 @@ pub async fn shadow_article(
         .to_result()?
         .claims
         .user_id;
-    let base_url = get_base_url();
-    let db = get_db();
+    let base_url = get_base_url()?;
+    let db = get_db()?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -1212,15 +1220,15 @@ pub async fn render_profile_view(
         .to_result()?
         .claims
         .user_id;
-    let base_url = get_base_url();
-    let db = get_db();
+    let base_url = get_base_url()?;
+    let db = get_db()?;
     let model = UserTb::find_by_id(identifier.parse::<i32>()?)
         .into_json()
         .one(db)
         .await?
         .to_result()?;
     let context = construct_context!["info"=>model,"baseUrl"=>base_url];
-    let tera = get_tera();
+    let tera = get_tera()?;
     let r = tera.render("person.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1238,7 +1246,7 @@ pub async fn edit_profile(
         .claims
         .user_id;
     let avatar = req.form::<String>("path").await.to_result()?;
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
     if avatar.is_empty() {
         let r = json!({
             "code":404,
@@ -1247,7 +1255,7 @@ pub async fn edit_profile(
         });
         res.render(Text::Json(r.to_string()));
     } else {
-        let db = get_db();
+        let db = get_db()?;
         let model = UserTb::find_by_id(identifier.parse::<i32>()?)
             .one(db)
             .await?
@@ -1271,7 +1279,7 @@ pub async fn search(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = get_base_url();
+    let base_url = get_base_url()?;
     let query_key = req.query("query").unwrap_or("");
     //println!("raw query_key = {}",query_key);
     let page = match req.param::<u64>("page") {
@@ -1286,7 +1294,7 @@ pub async fn search(
     };
     // let query_key = query_key.url_decode();
     //println!("query_key = {}",query_key);
-    let db = get_db();
+    let db = get_db()?;
     let query_condition = format!("%{query_key}%");
     let possible_tags = TagTb::find()
         .filter(tag_tb::Column::Name.like(&query_condition))
@@ -1308,7 +1316,7 @@ pub async fn search(
         .into_json()
         .paginate(db, 10);
 
-    let tera = get_tera();
+    let tera = get_tera()?;
     let total_count = pagination.num_items().await?;
     let total_pages = pagination.num_pages().await?;
     if page != 0 && (page + 1) > total_pages {
@@ -1406,8 +1414,8 @@ pub async fn sendcode(
         res.render(Text::Json(r.to_string()));
         return Ok(());
     }
-    let resend_key = get_resend_key();
-    let redis_url = get_redis_url();
+    let resend_key = get_resend_key()?;
+    let redis_url = get_redis_url()?;
     let client = redis::Client::open(redis_url)?;
     let mut con = client.get_connection()?;
     let code = gen_code();

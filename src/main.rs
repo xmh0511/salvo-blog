@@ -16,33 +16,6 @@ use salvo::jwt_auth::{ConstDecoder, CookieFinder};
 use home::{JwtClaims, UniformError};
 use tracing::log;
 
-// Generic injector to reduce code duplication
-#[derive(Clone)]
-struct DepotInjector<T: Clone + Send + Sync + 'static> {
-    key: &'static str,
-    value: T,
-}
-
-impl<T: Clone + Send + Sync + 'static> DepotInjector<T> {
-    fn new(key: &'static str, value: T) -> Self {
-        Self { key, value }
-    }
-}
-
-#[async_trait]
-impl<T: Clone + Send + Sync + 'static> Handler for DepotInjector<T> {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
-        depot.insert(self.key, self.value.clone());
-        ctrl.call_next(req, depot, res).await;
-    }
-}
-
 #[derive(Clone)]
 struct AuthorGuardByMethod;
 
@@ -245,6 +218,14 @@ async fn main() {
 
     tera.register_filter("is_null", IsNullFilter);
 
+    // Initialize static global variables
+    home::init_db(db);
+    home::init_tera(tera.clone());
+    home::init_base_url(base_url.clone());
+    home::init_secret_key(secret_key.to_owned());
+    home::init_redis_url(redis_url.to_owned());
+    home::init_resend_key(resend_key.to_owned());
+
     // let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(secret_key.to_owned())
     //     .finders(vec![
     //         // Box::new(HeaderFinder::new()),
@@ -269,7 +250,6 @@ async fn main() {
     // );
 
     let router = Router::new()
-        .hoop(DepotInjector::new("db_conn", db.clone()))
         .hoop(auth_handler)
         //.hoop(limiter)
         .get(home::home);
@@ -376,11 +356,6 @@ async fn main() {
         );
 
     let root_router = Router::new()
-        .hoop(DepotInjector::new("tera", tera.clone()))
-        .hoop(DepotInjector::new("base_url", base_url.clone()))
-        .hoop(DepotInjector::new("secret_key", secret_key.to_owned()))
-        .hoop(DepotInjector::new("redis_url", redis_url.to_owned()))
-        .hoop(DepotInjector::new("resend_key", resend_key.to_owned()))
         .push(router)
         .push(router_static_asserts);
 
