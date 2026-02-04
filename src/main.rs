@@ -1,5 +1,5 @@
 use salvo::{catcher::Catcher, prelude::*};
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::{ConnectOptions, Database};
 mod home;
 
 use salvo::serve_static::StaticDir;
@@ -16,34 +16,21 @@ use salvo::jwt_auth::{ConstDecoder, CookieFinder};
 use home::{JwtClaims, UniformError};
 use tracing::log;
 
-macro_rules! share_db {
-    ($id:ident) => {
-        InjectDbConnection($id.clone())
-    };
+// Generic injector to reduce code duplication
+#[derive(Clone)]
+struct DepotInjector<T: Clone + Send + Sync + 'static> {
+    key: &'static str,
+    value: T,
 }
 
-#[derive(Clone)]
-struct InjectDbConnection(DatabaseConnection);
-
-#[async_trait]
-impl Handler for InjectDbConnection {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
-        depot.insert("db_conn", self.0.clone());
-        ctrl.call_next(req, depot, res).await;
+impl<T: Clone + Send + Sync + 'static> DepotInjector<T> {
+    fn new(key: &'static str, value: T) -> Self {
+        Self { key, value }
     }
 }
 
-#[derive(Clone)]
-struct BaseUrlInjector(String);
-
 #[async_trait]
-impl Handler for BaseUrlInjector {
+impl<T: Clone + Send + Sync + 'static> Handler for DepotInjector<T> {
     async fn handle(
         &self,
         req: &mut Request,
@@ -51,57 +38,7 @@ impl Handler for BaseUrlInjector {
         res: &mut Response,
         ctrl: &mut FlowCtrl,
     ) {
-        depot.insert("base_url", self.0.clone());
-        ctrl.call_next(req, depot, res).await;
-    }
-}
-
-#[derive(Clone)]
-struct RedisUrlInjector(String);
-
-#[async_trait]
-impl Handler for RedisUrlInjector {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
-        depot.insert("redis_url", self.0.clone());
-        ctrl.call_next(req, depot, res).await;
-    }
-}
-
-#[derive(Clone)]
-struct ReSendKeyInjector(String);
-
-#[async_trait]
-impl Handler for ReSendKeyInjector {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
-        depot.insert("resend_key", self.0.clone());
-        ctrl.call_next(req, depot, res).await;
-    }
-}
-
-#[derive(Clone)]
-struct TemplateEngineInjection(Tera);
-#[async_trait]
-impl Handler for TemplateEngineInjection {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
-        depot.insert("tera", self.0.clone());
+        depot.insert(self.key, self.value.clone());
         ctrl.call_next(req, depot, res).await;
     }
 }
@@ -123,90 +60,48 @@ impl AuthorGuardByMethod {
                 ctrl.call_next(req, depot, res).await;
                 Ok(())
             }
-            JwtAuthState::Unauthorized => {
-                let http_method = req.method();
-                if http_method == salvo::http::Method::GET {
-                    // response html
-                    let base_url = depot
-                        .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-                    let tera = depot
-                        .get::<Tera>("tera")
-                        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
-                    let mut context = Context::new();
-                    context.insert("code", &404);
-                    context.insert("msg", "没有权限执行此操作");
-                    context.insert("baseUrl", &base_url);
-                    let r = tera
-                        .render("404.html", &context)
-                        .unwrap_or(String::from("error"));
-                    res.render(Text::Html(r));
-                } else if http_method == salvo::http::Method::POST {
-                    let base_url = depot
-                        .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-                    let r = json!({
-                        "code":400,
-                        "msg":"没有权限执行此操作",
-                        "baseUrl":base_url,
-                        "success":0,
-                        "message":"没有权限执行此操作",
-                    });
-                    res.render(Text::Json(r.to_string()))
-                }
-                ctrl.skip_rest();
-                Ok(())
-            }
-            JwtAuthState::Forbidden => {
-                let http_method = req.method();
-                if http_method == salvo::http::Method::GET {
-                    // response html
-                    let base_url = depot
-                        .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-                    let tera = depot
-                        .get::<Tera>("tera")
-                        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
-                    let mut context = Context::new();
-                    context.insert("code", &404);
-                    context.insert("msg", "没有权限执行此操作");
-                    context.insert("baseUrl", &base_url);
-                    let r = tera
-                        .render("404.html", &context)
-                        .unwrap_or(String::from("error"));
-                    res.render(Text::Html(r));
-                } else if http_method == salvo::http::Method::POST {
-                    let base_url = depot
-                        .get::<String>("base_url")
-                        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-                    let r = json!({
-                        "code":400,
-                        "msg":"没有权限执行此操作",
-                        "baseUrl":base_url,
-                        "success":0,
-                        "message":"没有权限执行此操作",
-                    });
-                    res.render(Text::Json(r.to_string()))
-                }
+            JwtAuthState::Unauthorized | JwtAuthState::Forbidden => {
+                Self::render_unauthorized_response(req, depot, res)?;
                 ctrl.skip_rest();
                 Ok(())
             }
         }
     }
 }
-#[derive(Clone)]
-struct SecretKeyForJWT(String);
-#[async_trait]
-impl Handler for SecretKeyForJWT {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
+
+impl AuthorGuardByMethod {
+    fn render_unauthorized_response(
+        req: &Request,
+        depot: &Depot,
         res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
-        depot.insert("secret_key", self.0.clone());
-        ctrl.call_next(req, depot, res).await;
+    ) -> Result<(), UniformError> {
+        let base_url = depot
+            .get::<String>("base_url")
+            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+        
+        if req.method() == salvo::http::Method::GET {
+            let tera = depot
+                .get::<Tera>("tera")
+                .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+            let mut context = Context::new();
+            context.insert("code", &404);
+            context.insert("msg", "没有权限执行此操作");
+            context.insert("baseUrl", &base_url);
+            let r = tera
+                .render("404.html", &context)
+                .unwrap_or(String::from("error"));
+            res.render(Text::Html(r));
+        } else if req.method() == salvo::http::Method::POST {
+            let r = json!({
+                "code":400,
+                "msg":"没有权限执行此操作",
+                "baseUrl":base_url,
+                "success":0,
+                "message":"没有权限执行此操作",
+            });
+            res.render(Text::Json(r.to_string()));
+        }
+        Ok(())
     }
 }
 
@@ -374,7 +269,7 @@ async fn main() {
     // );
 
     let router = Router::new()
-        .hoop(share_db!(db))
+        .hoop(DepotInjector::new("db_conn", db.clone()))
         .hoop(auth_handler)
         //.hoop(limiter)
         .get(home::home);
@@ -481,11 +376,11 @@ async fn main() {
         );
 
     let root_router = Router::new()
-        .hoop(TemplateEngineInjection(tera.clone()))
-        .hoop(BaseUrlInjector(base_url.clone()))
-        .hoop(SecretKeyForJWT(secret_key.to_owned()))
-        .hoop(RedisUrlInjector(redis_url.to_owned()))
-        .hoop(ReSendKeyInjector(resend_key.to_owned()))
+        .hoop(DepotInjector::new("tera", tera.clone()))
+        .hoop(DepotInjector::new("base_url", base_url.clone()))
+        .hoop(DepotInjector::new("secret_key", secret_key.to_owned()))
+        .hoop(DepotInjector::new("redis_url", redis_url.to_owned()))
+        .hoop(DepotInjector::new("resend_key", resend_key.to_owned()))
         .push(router)
         .push(router_static_asserts);
 
