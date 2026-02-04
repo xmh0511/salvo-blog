@@ -131,8 +131,8 @@ fn get_resend_key<const E: u8>(depot: &Depot) -> Result<&String, UniformError<E>
         .map_err(|_| anyhow::anyhow!("failed to acquire resend key").into())
 }
 
-fn get_current_time() -> Option<chrono::NaiveDateTime> {
-    Some(Local::now().naive_local())
+fn get_current_time() -> chrono::NaiveDateTime {
+    Local::now().naive_local()
 }
 
 /// Return UserTb::Model, TagTb::Model, view_count, comment_count
@@ -740,7 +740,7 @@ WHERE
 async fn increase_view_count(article_id: i32, db: &DatabaseConnection) -> Result<(), UniformError> {
     let mut model = view_tb::ActiveModel::new();
     model.article_id = ActiveValue::set(Some(article_id));
-    let now = ActiveValue::set(get_current_time());
+    let now = ActiveValue::set(Some(get_current_time()));
     model.create_time = now.clone();
     model.insert(db).await?;
     Ok(())
@@ -940,7 +940,7 @@ pub async fn save_edit_comment(
         let mut update = comment_tb::ActiveModel::from(x);
         update.comment = ActiveValue::set(Some(comment));
         update.md_content = ActiveValue::set(Some(md_content));
-        update.update_time = ActiveValue::set(get_current_time());
+        update.update_time = ActiveValue::set(Some(get_current_time()));
         let _ = update.update(db).await?;
         let r = json!({
             "code":200,
@@ -975,7 +975,7 @@ pub async fn add_comment(
     let mut model = comment_tb::ActiveModel::new();
     model.article_id = ActiveValue::set(Some(article_id));
     model.comment = ActiveValue::set(Some(comment));
-    let now = ActiveValue::set(get_current_time());
+    let now = ActiveValue::set(Some(get_current_time()));
     model.create_time = now.clone();
     model.md_content = ActiveValue::set(Some(md_comment));
     model.update_time = now;
@@ -1063,7 +1063,7 @@ pub async fn add_article(
         let mut model = article_tb::ActiveModel::new();
         model.article_state = ActiveValue::set(Some(1));
         model.content = ActiveValue::set(Some(content));
-        let now = ActiveValue::set(get_current_time());
+        let now = ActiveValue::set(Some(get_current_time()));
         model.create_time = now.clone();
         model.level = ActiveValue::set(Some(level));
         model.tag_id = ActiveValue::set(Some(tag));
@@ -1147,7 +1147,7 @@ pub async fn edit_article(
     model.title = ActiveValue::set(Some(title));
     model.content = ActiveValue::set(Some(content));
     model.level = ActiveValue::set(Some(level));
-    model.update_time = ActiveValue::set(get_current_time());
+    model.update_time = ActiveValue::set(Some(get_current_time()));
     model.update(db).await?;
     let r = json!({
         "code":200,
@@ -1179,9 +1179,9 @@ pub async fn shadow_article(
         .to_result()?;
     let state = model.article_state.unwrap_or(1);
     let mut model = article_tb::ActiveModel::from(model);
-    // Toggle state between 0 and 1
-    model.article_state = ActiveValue::set(Some(1 - state));
-    model.update_time = ActiveValue::set(get_current_time());
+    // Toggle state: 1 -> 0, any other value -> 1
+    model.article_state = ActiveValue::set(Some(if state == 1 { 0 } else { 1 }));
+    model.update_time = ActiveValue::set(Some(get_current_time()));
     model.update(db).await?;
     let r = json!({
         "code":200,
@@ -1244,7 +1244,7 @@ pub async fn edit_profile(
             .to_result()?;
         let mut model = user_tb::ActiveModel::from(model);
         model.avatar = ActiveValue::set(Some(avatar));
-        model.update_time = ActiveValue::set(get_current_time());
+        model.update_time = ActiveValue::set(Some(get_current_time()));
         model.update(db).await?;
         let r = json!({
             "code":200,
