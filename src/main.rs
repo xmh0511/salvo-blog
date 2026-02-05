@@ -358,7 +358,7 @@ async fn main() {
     let root_router = Router::new().push(router).push(router_static_asserts);
 
     tracing::info!("Listening on {}", bind_addr);
-    let acceptor = TcpListener::new(bind_addr).bind().await;
+    let acceptor = TcpListener::new(bind_addr.to_owned()).bind().await;
     let service = Service::new(root_router)
         //.hoop(Logger::new())
         .catcher(Catcher::default().hoop(Handle404(base_url, tera)));

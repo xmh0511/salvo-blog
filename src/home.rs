@@ -70,7 +70,7 @@ macro_rules! construct_context {
     };
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
     pub user_id: String,
     pub exp: i64,
@@ -295,30 +295,30 @@ async fn enrich_articles_with_metadata(
 
 /// Return UserTb::Model, TagTb::Model, view_count, comment_count
 /// Note: This function is kept for backward compatibility but should be replaced with batch version
-async fn get_relative_information_from_article(
-    article_id: u64,
-    user_id: u64,
-    tag_id: u64,
-    db: &DatabaseConnection,
-) -> Result<(user_tb::Model, tag_tb::Model, u64, u64), UniformError> {
-    let tag = TagTb::find_by_id(tag_id as i32)
-        .one(db)
-        .await?
-        .to_result()?;
-    let user = UserTb::find_by_id(user_id as i32)
-        .one(db)
-        .await?
-        .to_result()?;
-    let count = ViewTb::find()
-        .filter(view_tb::Column::ArticleId.eq(article_id))
-        .count(db)
-        .await?;
-    let comment_count = CommentTb::find()
-        .filter(comment_tb::Column::ArticleId.eq(article_id))
-        .count(db)
-        .await?;
-    Ok((user, tag, count, comment_count))
-}
+// async fn get_relative_information_from_article(
+//     article_id: u64,
+//     user_id: u64,
+//     tag_id: u64,
+//     db: &DatabaseConnection,
+// ) -> Result<(user_tb::Model, tag_tb::Model, u64, u64), UniformError> {
+//     let tag = TagTb::find_by_id(tag_id as i32)
+//         .one(db)
+//         .await?
+//         .to_result()?;
+//     let user = UserTb::find_by_id(user_id as i32)
+//         .one(db)
+//         .await?
+//         .to_result()?;
+//     let count = ViewTb::find()
+//         .filter(view_tb::Column::ArticleId.eq(article_id))
+//         .count(db)
+//         .await?;
+//     let comment_count = CommentTb::find()
+//         .filter(comment_tb::Column::ArticleId.eq(article_id))
+//         .count(db)
+//         .await?;
+//     Ok((user, tag, count, comment_count))
+// }
 
 async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>, UniformError> {
     // Optimized: Simplified SQL query without nested subquery
@@ -718,7 +718,6 @@ pub async fn post_register(
 
 #[handler]
 pub async fn forgetpass(_req: &mut Request, res: &mut Response) -> Result<(), UniformError> {
-    println!("forgetpass");
     let base_url = get_base_url()?;
     let tera = get_tera()?;
     let mut context = Context::new();

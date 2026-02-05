@@ -6,7 +6,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-salvo = { version = "0.79.0", features = [
+salvo = { version = "0.89", features = [
     "serve-static",
     "session",
     "jwt-auth",
