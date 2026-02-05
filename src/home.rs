@@ -24,6 +24,41 @@ use chrono::prelude::*;
 use jsonwebtoken::{self, EncodingKey};
 
 use ::serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
+use std::collections::HashMap;
+
+// Static global variables for application-lifetime resources
+static DB: OnceLock<DatabaseConnection> = OnceLock::new();
+static TERA: OnceLock<Tera> = OnceLock::new();
+static BASE_URL: OnceLock<String> = OnceLock::new();
+static SECRET_KEY: OnceLock<String> = OnceLock::new();
+static REDIS_URL: OnceLock<String> = OnceLock::new();
+static RESEND_KEY: OnceLock<String> = OnceLock::new();
+
+// Public initialization functions (called from main.rs)
+pub fn init_db(db: DatabaseConnection) {
+    DB.set(db).expect("DB already initialized");
+}
+
+pub fn init_tera(tera: Tera) {
+    TERA.set(tera).expect("TERA already initialized");
+}
+
+pub fn init_base_url(url: String) {
+    BASE_URL.set(url).expect("BASE_URL already initialized");
+}
+
+pub fn init_secret_key(key: String) {
+    SECRET_KEY.set(key).expect("SECRET_KEY already initialized");
+}
+
+pub fn init_redis_url(url: String) {
+    REDIS_URL.set(url).expect("REDIS_URL already initialized");
+}
+
+pub fn init_resend_key(key: String) {
+    RESEND_KEY.set(key).expect("RESEND_KEY already initialized");
+}
 
 macro_rules! construct_context {
     ($($k:expr => $v:expr),+) => {
@@ -55,21 +90,23 @@ impl<const ERRORCODE: u8, T: Into<anyhow::Error>> From<T> for UniformError<ERROR
 
 #[async_trait]
 impl<const ERRORCODE: u8> Writer for UniformError<ERRORCODE> {
-    async fn write(mut self, _req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let err = self.0.to_string();
         if ERRORCODE == 1 {
-            let Ok(tera) = depot.get::<Tera>("tera") else {
-                res.status_code(StatusCode::BAD_REQUEST)
-                    .render(Text::Plain(err));
-                return;
-            };
-            let default_url = "/".to_string();
-            let base_url = depot.get::<String>("base_url").unwrap_or(&default_url);
-            let context = construct_context!["code"=>404,"msg"=>err,"baseUrl"=>base_url];
-            let r = tera.render("404.html", &context).unwrap_or(err);
-
-            res.status_code(StatusCode::BAD_REQUEST)
-                .render(Text::Html(r));
+            // Try to get tera and base_url, fall back to plain text if not available
+            match (get_tera::<ERRORCODE>(), get_base_url::<ERRORCODE>()) {
+                (Ok(tera), Ok(base_url)) => {
+                    let context = construct_context!["code"=>404,"msg"=>err,"baseUrl"=>base_url];
+                    let r = tera.render("404.html", &context).unwrap_or(err);
+                    res.status_code(StatusCode::BAD_REQUEST)
+                        .render(Text::Html(r));
+                }
+                _ => {
+                    // If globals not initialized, return plain text error
+                    res.status_code(StatusCode::BAD_REQUEST)
+                        .render(Text::Plain(err));
+                }
+            }
         } else {
             let r = json!({
                 "code":400,
@@ -93,7 +130,157 @@ impl<T> ConverOptionToResult<T> for Option<T> {
         }
     }
 }
+
+// Helper functions to access static global resources
+// These return Result to allow graceful error handling instead of panic
+fn get_db<const E: u8>() -> Result<&'static DatabaseConnection, UniformError<E>> {
+    DB.get().ok_or_else(|| anyhow::anyhow!("Database connection not initialized").into())
+}
+
+fn get_base_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    BASE_URL.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Base URL not initialized").into())
+}
+
+fn get_tera<const E: u8>() -> Result<&'static Tera, UniformError<E>> {
+    TERA.get().ok_or_else(|| anyhow::anyhow!("Template engine not initialized").into())
+}
+
+fn get_secret_key<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    SECRET_KEY.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Secret key not initialized").into())
+}
+
+fn get_redis_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    REDIS_URL.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Redis URL not initialized").into())
+}
+
+fn get_resend_key<const E: u8>() -> Result<&'static str, UniformError<E>> {
+    RESEND_KEY.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Resend key not initialized").into())
+}
+
+fn get_current_time() -> chrono::NaiveDateTime {
+    Local::now().naive_local()
+}
+
+/// Optimized: Enrich article data with metadata in a single batch operation
+/// Solves N+1 query problem by using batch queries instead of per-article queries
+async fn enrich_articles_with_metadata(
+    articles: &mut [JsonValue],
+    db: &DatabaseConnection,
+) -> Result<(), UniformError> {
+    if articles.is_empty() {
+        return Ok(());
+    }
+
+    // Extract unique IDs
+    let mut user_ids = Vec::new();
+    let mut tag_ids = Vec::new();
+    let mut article_ids = Vec::new();
+    
+    for article in articles.iter() {
+        if let Some(id) = article.get("id").and_then(|v| v.as_i64()) {
+            article_ids.push(id as i32);
+        }
+        if let Some(uid) = article.get("user_id").and_then(|v| v.as_i64()) {
+            user_ids.push(uid as i32);
+        }
+        if let Some(tid) = article.get("tag_id").and_then(|v| v.as_i64()) {
+            tag_ids.push(tid as i32);
+        }
+    }
+
+    // Batch fetch users
+    let users = UserTb::find()
+        .filter(user_tb::Column::Id.is_in(user_ids))
+        .all(db)
+        .await?;
+    let user_map: HashMap<i32, String> = users
+        .into_iter()
+        .map(|u| (u.id, u.name.unwrap_or_default()))
+        .collect();
+
+    // Batch fetch tags
+    let tags = TagTb::find()
+        .filter(tag_tb::Column::Id.is_in(tag_ids))
+        .all(db)
+        .await?;
+    let tag_map: HashMap<i32, String> = tags
+        .into_iter()
+        .map(|t| (t.id, t.name.unwrap_or_default()))
+        .collect();
+
+    // Batch fetch view and comment counts with optimized SQL
+    let article_ids_str = article_ids
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    
+    if !article_ids_str.is_empty() {
+        let counts_sql = format!(
+            r#"
+            SELECT 
+                article_id,
+                SUM(CASE WHEN source = 'view' THEN 1 ELSE 0 END) as view_count,
+                SUM(CASE WHEN source = 'comment' THEN 1 ELSE 0 END) as comment_count
+            FROM (
+                SELECT article_id, 'view' as source FROM view_tb WHERE article_id IN ({})
+                UNION ALL
+                SELECT article_id, 'comment' as source FROM comment_tb WHERE article_id IN ({})
+            ) combined
+            GROUP BY article_id
+            "#,
+            article_ids_str, article_ids_str
+        );
+        
+        let counts_stmt = Statement::from_string(DatabaseBackend::MySql, counts_sql);
+        let counts_results = ViewTb::find()
+            .from_raw_sql(counts_stmt)
+            .into_json()
+            .all(db)
+            .await?;
+        
+        let mut counts_map: HashMap<i32, (u64, u64)> = counts_results
+            .into_iter()
+            .filter_map(|v| {
+                let article_id = v.get("article_id")?.as_i64()? as i32;
+                let view_count = v.get("view_count")?.as_u64().unwrap_or(0);
+                let comment_count = v.get("comment_count")?.as_u64().unwrap_or(0);
+                Some((article_id, (view_count, comment_count)))
+            })
+            .collect();
+
+        // Enrich articles with fetched data
+        for article in articles.iter_mut() {
+            if let Some(article_id) = article.get("id").and_then(|v| v.as_i64()) {
+                let article_id = article_id as i32;
+                
+                // Add user name
+                if let Some(user_id) = article.get("user_id").and_then(|v| v.as_i64()) {
+                    if let Some(user_name) = user_map.get(&(user_id as i32)) {
+                        article["userName"] = json!(user_name);
+                    }
+                }
+                
+                // Add tag name
+                if let Some(tag_id) = article.get("tag_id").and_then(|v| v.as_i64()) {
+                    if let Some(tag_name) = tag_map.get(&(tag_id as i32)) {
+                        article["tagName"] = json!(tag_name);
+                    }
+                }
+                
+                // Add counts
+                let (view_count, comment_count) = counts_map.remove(&article_id).unwrap_or((0, 0));
+                article["read_count"] = json!(view_count);
+                article["commentCount"] = json!(comment_count);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Return UserTb::Model, TagTb::Model, view_count, comment_count
+/// Note: This function is kept for backward compatibility but should be replaced with batch version
 async fn get_relative_information_from_article(
     article_id: u64,
     user_id: u64,
@@ -120,33 +307,22 @@ async fn get_relative_information_from_article(
 }
 
 async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>, UniformError> {
+    // Optimized: Simplified SQL query without nested subquery
+    let sql = r#"
+        SELECT 
+            a.id,
+            a.title,
+            COUNT(v.id) AS Counts
+        FROM article_tb a
+        LEFT JOIN view_tb v ON a.id = v.article_id
+        WHERE a.level <> 999 AND a.article_state = 1
+        GROUP BY a.id, a.title
+        ORDER BY Counts DESC
+        LIMIT 8
+    "#;
+    
     let r = ViewTb::find()
-        .from_raw_sql(Statement::from_string(
-            DatabaseBackend::MySql,
-            String::from(
-                r#"
-		SELECT
-		    T.title , T.id , T.Counts
-			FROM
-				(
-				SELECT
-					a.id,
-					a.title,
-					COUNT( c.id ) AS Counts 
-				FROM
-					article_tb a
-					LEFT JOIN view_tb c ON a.id = c.article_id 
-                WHERE
-                    a.`level` <> 999 
-                    AND a.article_state = 1 
-				GROUP BY
-					a.id 
-				) AS T 
-			ORDER BY 
-			T.Counts DESC LIMIT 8;
-	"#,
-            ),
-        ))
+        .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql.to_string()))
         .into_json()
         .all(db)
         .await?;
@@ -189,9 +365,7 @@ pub async fn home(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
@@ -200,35 +374,24 @@ pub async fn home(
             return Ok(());
         }
     };
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let pagination = ArticleTb::find()
         .order_by_desc(article_tb::Column::UpdateTime)
         .filter(article_tb::Column::ArticleState.eq(1))
         .filter(article_tb::Column::Level.ne(999))
         .into_json()
         .paginate(db, 10);
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let tera = get_tera()?;
     let total_count = pagination.num_items().await?;
-    let total_pages = pagination.num_pages().await?;
+    // Optimized: Calculate total_pages locally to avoid redundant COUNT query
+    let total_pages = (total_count + 9) / 10;
     if page != 0 && (page + 1) > total_pages {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
     }
     let mut data = pagination.fetch_page(page).await?;
 
-    for model in &mut data {
-        let id = model.get("id").to_result()?.as_u64().to_result()?;
-        let tag_id = model.get("tag_id").to_result()?.as_u64().to_result()?;
-        let user_id = model.get("user_id").to_result()?.as_u64().to_result()?;
-        let result = get_relative_information_from_article(id, user_id, tag_id, db).await?;
-        model["userName"] = json!(result.0.name);
-        model["tagName"] = json!(result.1.name);
-        model["read_count"] = json!(result.2);
-        model["commentCount"] = json!(result.3);
-    }
+    // Optimized: Use batch query instead of N+1 queries (was 40+ queries, now 3-4)
+    enrich_articles_with_metadata(&mut data, db).await?;
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
@@ -283,14 +446,9 @@ pub async fn home(
 pub async fn render_login_view(
     _req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let base_url = get_base_url()?;
+    let tera = get_tera()?;
     let context = construct_context!["baseUrl"=>base_url];
     let r = tera.render("login.html", &context)?;
     res.render(Text::Html(r));
@@ -301,19 +459,14 @@ pub async fn render_login_view(
 pub async fn login(
     req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
     let remember_me = req.form::<String>("rememberMe").await.to_result()?;
     let pass = md5::compute(pass);
     let pass = format!("{:?}", pass);
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let db = get_db()?;
+    let base_url = get_base_url()?;
     let Some(r) = UserTb::find()
         .filter(user_tb::Column::Name.eq(name.clone()))
         .filter(user_tb::Column::Password.eq(pass))
@@ -329,9 +482,7 @@ pub async fn login(
         return Ok(());
     };
     let remember = remember_me.trim() == "true";
-    let secret_key = depot
-        .get::<String>("secret_key")
-        .map_err(|_| anyhow::anyhow!("failed to acquire signing key"))?;
+    let secret_key = get_secret_key()?;
     let token = generate_token_by_user_id(secret_key, r.id, remember).await?;
     let r = json!({
        "code":200,
@@ -349,9 +500,7 @@ pub async fn person_list(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
     let page = match req.param::<u64>("page") {
         Some(x) if x >= 1 => x - 1,
         _ => {
@@ -362,9 +511,7 @@ pub async fn person_list(
     };
     let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
     let user_id = data.claims.user_id.clone();
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let offset = page * 10;
     let sql = r#"SELECT
 	R.AID,
@@ -400,9 +547,7 @@ GROUP BY
 ORDER BY
 	R.update_time DESC
 	LIMIT ?, 10"#;
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let tera = get_tera()?;
     let total_count = ArticleTb::find()
         .filter(article_tb::Column::UserId.eq(user_id.as_str()))
         .count(db)
@@ -463,14 +608,9 @@ ORDER BY
 pub async fn register(
     _req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let base_url = get_base_url()?;
+    let tera = get_tera()?;
     let mut context = Context::new();
     context.insert("baseUrl", base_url);
     let r = tera.render("reg.html", &context)?;
@@ -482,7 +622,6 @@ pub async fn register(
 pub async fn post_register(
     req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
@@ -496,10 +635,8 @@ pub async fn post_register(
         .await
         .ok_or(anyhow::anyhow!("code is required"))?;
 
-    let redis_url = depot
-        .get::<String>("redis_url")
-        .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
-    let client = redis::Client::open(redis_url.as_str())?;
+    let redis_url = get_redis_url()?;
+    let client = redis::Client::open(redis_url)?;
     let mut con = client.get_connection()?;
     let code = con
         .get(&email)?
@@ -530,9 +667,7 @@ pub async fn post_register(
         return Ok(());
     }
 
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let count = UserTb::find()
         .filter(user_tb::Column::Name.eq(name.clone()))
         .count(db)
@@ -556,13 +691,9 @@ pub async fn post_register(
         add_user.update_time = ActiveValue::set(Some(time_now.naive_local()));
         add_user.privilege = ActiveValue::set(Some(2));
         let r = UserTb::insert(add_user).exec(db).await?.last_insert_id;
-        let secret_key = depot
-            .get::<String>("secret_key")
-            .map_err(|_| anyhow::anyhow!("failed to acquire signing key"))?;
+        let secret_key = get_secret_key()?;
         let token = generate_token_by_user_id(secret_key, r, false).await?;
-        let base_url = depot
-            .get::<String>("base_url")
-            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+        let base_url = get_base_url()?;
         let r = json!({
            "code":200,
            "token":token,
@@ -578,14 +709,9 @@ pub async fn post_register(
 pub async fn forgetpass(
     _req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let base_url = get_base_url()?;
+    let tera = get_tera()?;
     let mut context = Context::new();
     context.insert("baseUrl", base_url);
     let r = tera.render("forget.html", &context)?;
@@ -597,7 +723,6 @@ pub async fn forgetpass(
 pub async fn post_forget(
     req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
     let name = req.form::<String>("nickName").await.to_result()?;
     let pass = req.form::<String>("password").await.to_result()?;
@@ -611,10 +736,8 @@ pub async fn post_forget(
         .await
         .ok_or(anyhow::anyhow!("code is required"))?;
 
-    let redis_url = depot
-        .get::<String>("redis_url")
-        .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
-    let client = redis::Client::open(redis_url.as_str())?;
+    let redis_url = get_redis_url()?;
+    let client = redis::Client::open(redis_url)?;
     let mut con = client.get_connection()?;
     let code = con
         .get(&email)?
@@ -645,9 +768,7 @@ pub async fn post_forget(
         return Ok(());
     }
 
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let user = UserTb::find()
         .filter(user_tb::Column::Name.eq(name.clone()))
         .filter(user_tb::Column::Email.eq(&email))
@@ -660,9 +781,7 @@ pub async fn post_forget(
         let time_now = Local::now();
         user.update_time = ActiveValue::set(Some(time_now.naive_local()));
         user.update(db).await?;
-        let base_url = depot
-            .get::<String>("base_url")
-            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+        let base_url = get_base_url()?;
         let r = json!({
            "code":200,
            "msg":"重置账号成功",
@@ -742,7 +861,7 @@ WHERE
 async fn increase_view_count(article_id: i32, db: &DatabaseConnection) -> Result<(), UniformError> {
     let mut model = view_tb::ActiveModel::new();
     model.article_id = ActiveValue::set(Some(article_id));
-    let now = ActiveValue::set(Some(Local::now().naive_local()));
+    let now = ActiveValue::set(Some(get_current_time()));
     model.create_time = now.clone();
     model.insert(db).await?;
     Ok(())
@@ -756,9 +875,7 @@ pub async fn read_article(
 ) -> Result<(), UniformError> {
     let article_id: i32 = req.param("id").to_result()?;
 
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
 
     let article_model = get_article_and_author_by_article_id(article_id, db).await?;
 
@@ -768,13 +885,9 @@ pub async fn read_article(
         .as_u64()
         .to_result()?;
 
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
 
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let tera = get_tera()?;
     match depot.jwt_auth_state() {
         JwtAuthState::Authorized => {
             let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
@@ -864,16 +977,12 @@ pub async fn delete_comment(
         .claims
         .user_id;
     let identifier = identifier.as_str();
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .count(db)
         .await?;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
     if r == 1 {
         let _ = CommentTb::delete_by_id(comment_id).exec(db).await?;
         let r = json!({
@@ -905,20 +1014,14 @@ pub async fn edit_comment(
         .claims
         .user_id;
     let identifier = identifier.as_str();
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let r = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .into_json()
         .one(db)
         .await?;
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let tera = get_tera()?;
+    let base_url = get_base_url()?;
     if let Some(x) = r {
         let context = construct_context!["info"=>x,"baseUrl"=>base_url];
         let r = tera.render("editcomment.html", &context)?;
@@ -941,9 +1044,7 @@ pub async fn save_edit_comment(
     let comment_id = req.param::<i32>("id").to_result()?;
     let comment: String = req.form("comment").await.to_result()?;
     let md_content: String = req.form("md_content").await.to_result()?;
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let identifier = &depot
         .jwt_auth_data::<JwtClaims>()
         .to_result()?
@@ -951,9 +1052,7 @@ pub async fn save_edit_comment(
         .user_id;
     let identifier = identifier.as_str();
     //let tera = depot.get::<Tera>("tera").to_result()?;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
     let model = CommentTb::find_by_id(comment_id)
         .filter(comment_tb::Column::UserId.eq(identifier))
         .one(db)
@@ -962,7 +1061,7 @@ pub async fn save_edit_comment(
         let mut update = comment_tb::ActiveModel::from(x);
         update.comment = ActiveValue::set(Some(comment));
         update.md_content = ActiveValue::set(Some(md_content));
-        update.update_time = ActiveValue::set(Some(Local::now().naive_local()));
+        update.update_time = ActiveValue::set(Some(get_current_time()));
         let _ = update.update(db).await?;
         let r = json!({
             "code":200,
@@ -997,14 +1096,12 @@ pub async fn add_comment(
     let mut model = comment_tb::ActiveModel::new();
     model.article_id = ActiveValue::set(Some(article_id));
     model.comment = ActiveValue::set(Some(comment));
-    let now = ActiveValue::set(Some(Local::now().naive_local()));
+    let now = ActiveValue::set(Some(get_current_time()));
     model.create_time = now.clone();
     model.md_content = ActiveValue::set(Some(md_comment));
     model.update_time = now;
     model.user_id = ActiveValue::set(Some(identifier));
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let _ = model.insert(db).await?;
     let r = json!({
         "code":200
@@ -1046,20 +1143,13 @@ pub async fn upload(
 pub async fn render_add_article_view(
     _req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let base_url = get_base_url()?;
+    let db = get_db()?;
     let tags = TagTb::find().into_json().all(db).await?;
     let levels = LevelTb::find().into_json().all(db).await?;
     let context = construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url];
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let tera = get_tera()?;
     let r = tera.render("add.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1088,16 +1178,12 @@ pub async fn add_article(
             .claims
             .user_id;
         let identifier = identifier.as_str();
-        let base_url = depot
-            .get::<String>("base_url")
-            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-        let db = depot
-            .get::<DatabaseConnection>("db_conn")
-            .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+        let base_url = get_base_url()?;
+        let db = get_db()?;
         let mut model = article_tb::ActiveModel::new();
         model.article_state = ActiveValue::set(Some(1));
         model.content = ActiveValue::set(Some(content));
-        let now = ActiveValue::set(Some(Local::now().naive_local()));
+        let now = ActiveValue::set(Some(get_current_time()));
         model.create_time = now.clone();
         model.level = ActiveValue::set(Some(level));
         model.tag_id = ActiveValue::set(Some(tag));
@@ -1130,13 +1216,9 @@ pub async fn render_article_edit_view(
 
     let identifier = identifier.as_str();
 
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
 
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
 
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier))
@@ -1149,9 +1231,7 @@ pub async fn render_article_edit_view(
     let levels = LevelTb::find().into_json().all(db).await?;
     let context =
         construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url,"article"=>model];
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let tera = get_tera()?;
     let r = tera.render("edit.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1170,13 +1250,9 @@ pub async fn edit_article(
         .to_result()?
         .claims
         .user_id;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
 
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -1191,7 +1267,7 @@ pub async fn edit_article(
     model.title = ActiveValue::set(Some(title));
     model.content = ActiveValue::set(Some(content));
     model.level = ActiveValue::set(Some(level));
-    model.update_time = ActiveValue::set(Some(Local::now().naive_local()));
+    model.update_time = ActiveValue::set(Some(get_current_time()));
     model.update(db).await?;
     let r = json!({
         "code":200,
@@ -1214,12 +1290,8 @@ pub async fn shadow_article(
         .to_result()?
         .claims
         .user_id;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let base_url = get_base_url()?;
+    let db = get_db()?;
     let model = ArticleTb::find_by_id(article_id)
         .filter(article_tb::Column::UserId.eq(identifier.as_str()))
         .one(db)
@@ -1227,14 +1299,9 @@ pub async fn shadow_article(
         .to_result()?;
     let state = model.article_state.unwrap_or(1);
     let mut model = article_tb::ActiveModel::from(model);
-    model.article_state = {
-        if state == 1 {
-            ActiveValue::set(Some(0))
-        } else {
-            ActiveValue::set(Some(1))
-        }
-    };
-    model.update_time = ActiveValue::set(Some(Local::now().naive_local()));
+    // Toggle article state between visible (1) and hidden (0)
+    model.article_state = ActiveValue::set(Some(if state == 1 { 0 } else { 1 }));
+    model.update_time = ActiveValue::set(Some(get_current_time()));
     model.update(db).await?;
     let r = json!({
         "code":200,
@@ -1255,21 +1322,15 @@ pub async fn render_profile_view(
         .to_result()?
         .claims
         .user_id;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let base_url = get_base_url()?;
+    let db = get_db()?;
     let model = UserTb::find_by_id(identifier.parse::<i32>()?)
         .into_json()
         .one(db)
         .await?
         .to_result()?;
     let context = construct_context!["info"=>model,"baseUrl"=>base_url];
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let tera = get_tera()?;
     let r = tera.render("person.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1287,9 +1348,7 @@ pub async fn edit_profile(
         .claims
         .user_id;
     let avatar = req.form::<String>("path").await.to_result()?;
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
     if avatar.is_empty() {
         let r = json!({
             "code":404,
@@ -1298,16 +1357,14 @@ pub async fn edit_profile(
         });
         res.render(Text::Json(r.to_string()));
     } else {
-        let db = depot
-            .get::<DatabaseConnection>("db_conn")
-            .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+        let db = get_db()?;
         let model = UserTb::find_by_id(identifier.parse::<i32>()?)
             .one(db)
             .await?
             .to_result()?;
         let mut model = user_tb::ActiveModel::from(model);
         model.avatar = ActiveValue::set(Some(avatar));
-        model.update_time = ActiveValue::set(Some(Local::now().naive_local()));
+        model.update_time = ActiveValue::set(Some(get_current_time()));
         model.update(db).await?;
         let r = json!({
             "code":200,
@@ -1324,9 +1381,7 @@ pub async fn search(
     res: &mut Response,
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
-    let base_url = depot
-        .get::<String>("base_url")
-        .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+    let base_url = get_base_url()?;
     let query_key = req.query("query").unwrap_or("");
     //println!("raw query_key = {}",query_key);
     let page = match req.param::<u64>("page") {
@@ -1341,9 +1396,7 @@ pub async fn search(
     };
     // let query_key = query_key.url_decode();
     //println!("query_key = {}",query_key);
-    let db = depot
-        .get::<DatabaseConnection>("db_conn")
-        .map_err(|_| anyhow::anyhow!("failed to acquire db connection"))?;
+    let db = get_db()?;
     let query_condition = format!("%{query_key}%");
     let possible_tags = TagTb::find()
         .filter(tag_tb::Column::Name.like(&query_condition))
@@ -1365,26 +1418,17 @@ pub async fn search(
         .into_json()
         .paginate(db, 10);
 
-    let tera = depot
-        .get::<Tera>("tera")
-        .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+    let tera = get_tera()?;
     let total_count = pagination.num_items().await?;
-    let total_pages = pagination.num_pages().await?;
+    // Optimized: Calculate total_pages locally to avoid redundant COUNT query
+    let total_pages = (total_count + 9) / 10;
     if page != 0 && (page + 1) > total_pages {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
     }
     let mut data = pagination.fetch_page(page).await?;
 
-    for model in &mut data {
-        let id = model.get("id").to_result()?.as_u64().to_result()?;
-        let tag_id = model.get("tag_id").to_result()?.as_u64().to_result()?;
-        let user_id = model.get("user_id").to_result()?.as_u64().to_result()?;
-        let result = get_relative_information_from_article(id, user_id, tag_id, db).await?;
-        model["userName"] = json!(result.0.name);
-        model["tagName"] = json!(result.1.name);
-        model["read_count"] = json!(result.2);
-        model["commentCount"] = json!(result.3);
-    }
+    // Optimized: Use batch query instead of N+1 queries
+    enrich_articles_with_metadata(&mut data, db).await?;
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
@@ -1452,7 +1496,6 @@ fn gen_code() -> String {
 pub async fn sendcode(
     req: &mut Request,
     res: &mut Response,
-    depot: &mut Depot,
 ) -> Result<(), UniformError> {
     let email = req
         .form::<String>("email")
@@ -1466,13 +1509,9 @@ pub async fn sendcode(
         res.render(Text::Json(r.to_string()));
         return Ok(());
     }
-    let resend_key = depot
-        .get::<String>("resend_key")
-        .map_err(|_| anyhow::anyhow!("email system is not ready for resend"))?;
-    let redis_url = depot
-        .get::<String>("redis_url")
-        .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
-    let client = redis::Client::open(redis_url.as_str())?;
+    let resend_key = get_resend_key()?;
+    let redis_url = get_redis_url()?;
+    let client = redis::Client::open(redis_url)?;
     let mut con = client.get_connection()?;
     let code = gen_code();
     con.set_ex(&email, &code, 5 * 60)?;
@@ -1505,7 +1544,7 @@ pub async fn sendcode(
 //     let redis_url = depot
 //         .get::<String>("redis_url")
 //         .map_err(|_| anyhow::anyhow!("email system is not ready for db"))?;
-//     let client = redis::Client::open(redis_url.as_str())?;
+//     let client = redis::Client::open(redis_url)?;
 //     let mut con = client.get_connection()?;
 //     let code = con.get(&email)?;
 //     let r = json!({
