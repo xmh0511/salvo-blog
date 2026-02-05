@@ -11,6 +11,8 @@ layui.use('jquery', function () {
     $(function () {
         //播放公告
         playAnnouncement(3000);
+        //画canvas
+        window.canvasController = DrawCanvas();
     });
     function playAnnouncement(interval) {
         var index = 0;
@@ -24,8 +26,6 @@ layui.use('jquery', function () {
             $announcement.eq(index).stop(true, true).fadeIn().siblings('span').fadeOut();  //下标对应的图片显示，同辈元素隐藏
         }, interval);
     }
-    //画canvas
-    DrawCanvas();
 });
 
 // function DrawCanvas() {
@@ -212,8 +212,7 @@ function DrawCanvas(){
 		x: null,
 		y: null,
 		radius: 150
-	},
-	hue = 0;
+	};
 
 	WIDTH = window.document.body.clientWidth;
 	if (screen.width >= 992) {
@@ -317,10 +316,6 @@ function DrawCanvas(){
 		// Draw connections
 		connect();
 
-		// Increment hue for color cycling
-		hue += 0.2;
-		if (hue > 360) hue = 0;
-
 		requestAnimationFrame(animate);
 	}
 
@@ -350,6 +345,21 @@ function DrawCanvas(){
 
 	init();
 	animate();
+	
+	// Return an object with methods to update dimensions
+	return {
+		updateDimensions: function() {
+			WIDTH = window.document.body.clientWidth;
+			if (screen.width >= 992) {
+				HEIGHT = window.innerHeight * 1 / 2;
+			} else {
+				HEIGHT = window.innerHeight * 2 / 7;
+			}
+			canvas.setAttribute("width", WIDTH);
+			canvas.setAttribute("height", HEIGHT);
+			init(); // Reinitialize particles with new dimensions
+		}
+	};
 }
 
 
@@ -359,15 +369,9 @@ function DrawCanvas(){
 //监听窗口大小改变
 window.addEventListener("resize", resizeCanvas, false);
 
-//窗口大小改变时改变canvas宽度并重新绘制
+//窗口大小改变时更新canvas尺寸
 function resizeCanvas() {
-    var canvas = document.getElementById('canvas-banner');
-	canvas.width = window.document.body.clientWidth;
-	if (screen.width >= 992) {
-		canvas.height = window.innerHeight * 1 / 2;
-	} else {
-		canvas.height = window.innerHeight * 2 / 7;
+	if (window.canvasController) {
+		window.canvasController.updateDimensions();
 	}
-	// Redraw canvas after resize
-	DrawCanvas();
 }
