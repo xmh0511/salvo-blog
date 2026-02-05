@@ -347,7 +347,7 @@ async fn main() {
 
     let router = router.push(upload_router);
 
-    let router_static_asserts = Router::with_path("{**path}")
+    let router_static_asserts = Router::with_path("public/{**path}")
         .hoop(Compression::new().enable_gzip(CompressionLevel::Fastest))
         .get(
             StaticDir::new(["public"])
