@@ -1,0 +1,360 @@
+/**
+ * Layer Dialog Theme Customization
+ * 统一对话框风格，匹配现代化主题
+ */
+
+/* 对话框主体样式 */
+.layui-layer {
+	border-radius: 16px !important;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
+	overflow: hidden !important;
+}
+
+.layui-layer-border {
+	border: none !important;
+}
+
+/* 对话框标题栏 */
+.layui-layer-title {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+	color: #fff !important;
+	border: none !important;
+	font-weight: 600 !important;
+	font-size: 16px !important;
+	padding: 18px 20px !important;
+	border-radius: 16px 16px 0 0 !important;
+}
+
+/* 对话框内容区域 */
+.layui-layer-content {
+	padding: 25px !important;
+	color: #2c3e50 !important;
+	font-size: 15px !important;
+	line-height: 1.6 !important;
+}
+
+/* 对话框按钮区域 */
+.layui-layer-btn {
+	padding: 15px 20px 20px !important;
+	text-align: center !important;
+	background: #f8f9fa !important;
+	border-top: 1px solid #e9ecef !important;
+	border-radius: 0 0 16px 16px !important;
+}
+
+/* 对话框按钮样式 */
+.layui-layer-btn a {
+	height: 42px !important;
+	line-height: 42px !important;
+	margin: 0 8px !important;
+	padding: 0 30px !important;
+	border-radius: 10px !important;
+	font-weight: 600 !important;
+	font-size: 14px !important;
+	transition: all 0.3s ease !important;
+	border: none !important;
+}
+
+/* 确定按钮 */
+.layui-layer-btn .layui-layer-btn0 {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+	color: #fff !important;
+	box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3) !important;
+}
+
+.layui-layer-btn .layui-layer-btn0:hover {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* 取消按钮 */
+.layui-layer-btn .layui-layer-btn1 {
+	background: #fff !important;
+	color: #667eea !important;
+	border: 2px solid #667eea !important;
+}
+
+.layui-layer-btn .layui-layer-btn1:hover {
+	background: #f8f9fa !important;
+	transform: translateY(-2px) !important;
+}
+
+/* 其他按钮 */
+.layui-layer-btn .layui-layer-btn2,
+.layui-layer-btn .layui-layer-btn3 {
+	background: #fff !important;
+	color: #95a5a6 !important;
+	border: 2px solid #e0e6ed !important;
+}
+
+.layui-layer-btn .layui-layer-btn2:hover,
+.layui-layer-btn .layui-layer-btn3:hover {
+	background: #f8f9fa !important;
+	border-color: #95a5a6 !important;
+}
+
+/* 关闭按钮 */
+.layui-layer-setwin .layui-layer-close {
+	background: rgba(255, 255, 255, 0.2) !important;
+	color: #fff !important;
+	width: 36px !important;
+	height: 36px !important;
+	line-height: 36px !important;
+	border-radius: 50% !important;
+	right: 15px !important;
+	top: 15px !important;
+	transition: all 0.3s ease !important;
+	font-size: 18px !important;
+}
+
+.layui-layer-setwin .layui-layer-close:hover {
+	background: rgba(255, 255, 255, 0.3) !important;
+	transform: rotate(90deg) !important;
+}
+
+.layui-layer-setwin .layui-layer-close1,
+.layui-layer-setwin .layui-layer-close2 {
+	background: transparent !important;
+	color: #95a5a6 !important;
+}
+
+.layui-layer-setwin .layui-layer-close1:hover,
+.layui-layer-setwin .layui-layer-close2:hover {
+	color: #667eea !important;
+	background: rgba(102, 126, 234, 0.1) !important;
+}
+
+/* 遮罩层 */
+.layui-layer-shade {
+	background: rgba(44, 62, 80, 0.6) !important;
+	backdrop-filter: blur(2px);
+}
+
+/* 消息提示样式 */
+.layui-layer-msg {
+	border-radius: 12px !important;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+	padding: 15px 25px !important;
+	min-width: 180px !important;
+	background: #fff !important;
+}
+
+.layui-layer-content.layui-layer-padding {
+	padding: 15px 25px !important;
+}
+
+/* 消息图标 */
+.layui-layer-ico {
+	margin-right: 10px !important;
+}
+
+/* 成功图标 */
+.layui-layer-ico1 {
+	color: #52c41a !important;
+	background-position: 0 0 !important;
+}
+
+/* 错误图标 */
+.layui-layer-ico2 {
+	color: #f5222d !important;
+}
+
+/* 问号图标 */
+.layui-layer-ico3 {
+	color: #faad14 !important;
+}
+
+/* 锁定图标 */
+.layui-layer-ico4 {
+	color: #1890ff !important;
+}
+
+/* 哭脸图标 */
+.layui-layer-ico5 {
+	color: #f5222d !important;
+}
+
+/* 笑脸图标 */
+.layui-layer-ico6 {
+	color: #52c41a !important;
+}
+
+/* 感叹号图标 */
+.layui-layer-ico7 {
+	color: #faad14 !important;
+}
+
+/* Loading 样式 */
+.layui-layer-loading .layui-layer-content {
+	background: rgba(255, 255, 255, 0.95) !important;
+	border-radius: 12px !important;
+	padding: 30px !important;
+}
+
+.layui-layer-loading.layui-layer {
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+/* 加载动画圆点 */
+.layui-layer-loading .layui-layer-loading1 i {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+	border-radius: 50% !important;
+}
+
+/* Iframe 层样式 */
+.layui-layer-iframe .layui-layer-content {
+	padding: 0 !important;
+}
+
+.layui-layer-iframe iframe {
+	border-radius: 0 0 16px 16px !important;
+}
+
+/* Tips 提示框样式 */
+.layui-layer-tips {
+	border-radius: 8px !important;
+	box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+.layui-layer-tips .layui-layer-content {
+	padding: 12px 18px !important;
+	background: rgba(44, 62, 80, 0.95) !important;
+	color: #fff !important;
+	font-size: 13px !important;
+	border-radius: 8px !important;
+}
+
+.layui-layer-TipsG {
+	border-color: transparent transparent rgba(44, 62, 80, 0.95) transparent !important;
+}
+
+/* Prompt 输入框样式 */
+.layui-layer-prompt .layui-layer-input {
+	border: 2px solid #e0e6ed !important;
+	border-radius: 8px !important;
+	padding: 12px 15px !important;
+	font-size: 14px !important;
+	transition: all 0.3s ease !important;
+	color: #2c3e50 !important;
+}
+
+.layui-layer-prompt .layui-layer-input:focus {
+	border-color: #667eea !important;
+	box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+	outline: none !important;
+}
+
+.layui-layer-prompt textarea.layui-layer-input {
+	resize: vertical !important;
+	min-height: 80px !important;
+}
+
+/* Tab 标签页样式 */
+.layui-layer-tab {
+	border-radius: 16px !important;
+}
+
+.layui-layer-tab .layui-layer-title {
+	background: #fff !important;
+	border-bottom: 2px solid #e9ecef !important;
+	border-radius: 16px 16px 0 0 !important;
+	padding: 0 !important;
+}
+
+.layui-layer-tab .layui-layer-title span {
+	padding: 15px 25px !important;
+	display: inline-block !important;
+	color: #95a5a6 !important;
+	font-weight: 600 !important;
+	cursor: pointer !important;
+	transition: all 0.3s ease !important;
+	border-radius: 16px 16px 0 0 !important;
+}
+
+.layui-layer-tab .layui-layer-title span:hover {
+	color: #667eea !important;
+}
+
+.layui-layer-tab .layui-layer-title span.layui-layer-tabnow {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+	color: #fff !important;
+}
+
+/* 照片查看器样式 */
+.layui-layer-photos {
+	border-radius: 16px !important;
+}
+
+.layui-layer-photos .layui-layer-content {
+	background: #000 !important;
+	border-radius: 16px !important;
+}
+
+.layui-layer-phimg img {
+	border-radius: 8px !important;
+}
+
+.layui-layer-imgbar {
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent) !important;
+	border-radius: 0 0 16px 16px !important;
+}
+
+/* 最小化按钮 */
+.layui-layer-min,
+.layui-layer-max {
+	background: rgba(255, 255, 255, 0.2) !important;
+	color: #fff !important;
+	border-radius: 50% !important;
+	width: 32px !important;
+	height: 32px !important;
+	line-height: 32px !important;
+	transition: all 0.3s ease !important;
+}
+
+.layui-layer-min:hover,
+.layui-layer-max:hover {
+	background: rgba(255, 255, 255, 0.3) !important;
+	transform: scale(1.1) !important;
+}
+
+/* 动画优化 */
+.layui-layer {
+	animation-duration: 0.3s !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+	.layui-layer {
+		border-radius: 12px !important;
+	}
+	
+	.layui-layer-title {
+		padding: 15px !important;
+		font-size: 15px !important;
+	}
+	
+	.layui-layer-content {
+		padding: 20px !important;
+		font-size: 14px !important;
+	}
+	
+	.layui-layer-btn {
+		padding: 12px 15px 15px !important;
+	}
+	
+	.layui-layer-btn a {
+		padding: 0 20px !important;
+		height: 38px !important;
+		line-height: 38px !important;
+		font-size: 13px !important;
+	}
+}
+
+/* 确保对话框在移动端不超出屏幕 */
+@media (max-width: 480px) {
+	.layui-layer {
+		max-width: calc(100vw - 30px) !important;
+		margin: 0 15px !important;
+	}
+}
