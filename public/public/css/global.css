@@ -1305,7 +1305,7 @@ body {
 .go-to-home{
 	margin-left: 5px;
 	display: flex;
-	align-items: flex-end;
+	align-items: center;
 }
 .go-to-home a{
 	line-height: 32px;
