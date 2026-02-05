@@ -1469,8 +1469,10 @@ body {
 }
 
 /* Smooth animations for all elements */
-* {
-	scroll-behavior: smooth;
+@media (prefers-reduced-motion: no-preference) {
+	* {
+		scroll-behavior: smooth;
+	}
 }
 
 /* Improved link styles */

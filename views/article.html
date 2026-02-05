@@ -63,7 +63,7 @@
 									class="layui-icon layui-icon-file-b"></i>{{info.create_time | date(format="%Y-%m-%d %H:%M")}}</span>
 							<span><i
 									class="layui-icon layui-icon-edit"></i>{{info.update_time | date(format="%Y-%m-%d %H:%M")}}</span>
-							<span><i class="layui-icon layui-icon-username"></i>作者: {{info.userName}}</span>
+							<span><i class="layui-icon layui-icon-username"></i><span class="article-meta-label">作者:</span> <span class="article-meta-value">{{info.userName}}</span></span>
 						</div>
 						<div id="article-content" class="article-detail-content"></div>
 					</div>
