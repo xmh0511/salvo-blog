@@ -4,3 +4,4 @@
 ![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview3.png)
 ![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview4.png)
 ![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview5.png)
+![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview6.png)
