@@ -7,7 +7,9 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 0;
 }
 
 body::before {
@@ -186,12 +188,7 @@ body::before {
 
 @media screen and (min-height: 550px) {
     .login-wrapper {
-        margin: -250px auto 0;
-        position: absolute;
-        top: 50%;
-        left: 0;
-        right: 0;
-        width: 100%;
+        margin: auto;
     }
 
     .login-copyright {
