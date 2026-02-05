@@ -9,9 +9,17 @@
 /*博主信息*/
 .blogerinfo {
     text-align: center;
-    padding: 0 15px;
+    padding: 20px;
     background: #fff;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.blogerinfo:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
 }
 
 .blogerinfo-figure {
@@ -20,19 +28,33 @@
 }
 
     .blogerinfo-figure img {
-        border-radius: 50px;
+        border-radius: 50%;
+        border: 4px solid #667eea;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .blogerinfo-figure img:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
     }
 
 .blogerinfo-nickname {
-    font-size: 32px;
-    font-weight: bold;
-    margin: 0 0 15px 0;
+    font-size: 28px;
+    font-weight: 700;
+    margin: 15px 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .blogerinfo-introduce {
     margin: 15px auto;
-    font-size: 18px;
+    font-size: 16px;
     width: 90%;
+    color: #7f8c8d;
+    line-height: 1.6;
 }
 
 .blogerinfo-location {
