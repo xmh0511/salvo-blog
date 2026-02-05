@@ -1405,12 +1405,12 @@ body {
 .layui-btn-primary {
 	border: 2px solid #667eea;
 	color: #667eea;
-	background: white;
+	background: transparent;
 	transition: all 0.3s ease;
 }
 
 .layui-btn-primary:hover {
-	background: #667eea;
+	background: transparent;
 	color: white;
 	border-color: #667eea;
 }
