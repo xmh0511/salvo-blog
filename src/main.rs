@@ -51,7 +51,7 @@ impl AuthorGuardByMethod {
         let base_url = depot
             .get::<String>("base_url")
             .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
-        
+
         if req.method() == salvo::http::Method::GET {
             let tera = depot
                 .get::<Tera>("tera")
@@ -347,7 +347,7 @@ async fn main() {
 
     let router = router.push(upload_router);
 
-    let router_static_asserts = Router::with_path("public/{**path}")
+    let router_static_asserts = Router::with_path("{**path}")
         .hoop(Compression::new().enable_gzip(CompressionLevel::Fastest))
         .get(
             StaticDir::new(["public"])
@@ -355,9 +355,7 @@ async fn main() {
                 .auto_list(false),
         );
 
-    let root_router = Router::new()
-        .push(router)
-        .push(router_static_asserts);
+    let root_router = Router::new().push(router).push(router_static_asserts);
 
     tracing::info!("Listening on {}", bind_addr);
     let acceptor = TcpListener::new(bind_addr).bind().await;

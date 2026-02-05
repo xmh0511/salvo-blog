@@ -7,7 +7,7 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
-    overflow: auto hidden;
+    overflow: auto auto;
     padding: 20px 0;
 }
 

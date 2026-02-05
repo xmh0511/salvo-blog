@@ -24,8 +24,8 @@ use chrono::prelude::*;
 use jsonwebtoken::{self, EncodingKey};
 
 use ::serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
 use std::collections::HashMap;
+use std::sync::OnceLock;
 
 // Static global variables for application-lifetime resources
 static DB: OnceLock<DatabaseConnection> = OnceLock::new();
@@ -134,27 +134,41 @@ impl<T> ConverOptionToResult<T> for Option<T> {
 // Helper functions to access static global resources
 // These return Result to allow graceful error handling instead of panic
 fn get_db<const E: u8>() -> Result<&'static DatabaseConnection, UniformError<E>> {
-    DB.get().ok_or_else(|| anyhow::anyhow!("Database connection not initialized").into())
+    DB.get()
+        .ok_or_else(|| anyhow::anyhow!("Database connection not initialized").into())
 }
 
 fn get_base_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
-    BASE_URL.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Base URL not initialized").into())
+    BASE_URL
+        .get()
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Base URL not initialized").into())
 }
 
 fn get_tera<const E: u8>() -> Result<&'static Tera, UniformError<E>> {
-    TERA.get().ok_or_else(|| anyhow::anyhow!("Template engine not initialized").into())
+    TERA.get()
+        .ok_or_else(|| anyhow::anyhow!("Template engine not initialized").into())
 }
 
 fn get_secret_key<const E: u8>() -> Result<&'static str, UniformError<E>> {
-    SECRET_KEY.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Secret key not initialized").into())
+    SECRET_KEY
+        .get()
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Secret key not initialized").into())
 }
 
 fn get_redis_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
-    REDIS_URL.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Redis URL not initialized").into())
+    REDIS_URL
+        .get()
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Redis URL not initialized").into())
 }
 
 fn get_resend_key<const E: u8>() -> Result<&'static str, UniformError<E>> {
-    RESEND_KEY.get().map(|s| s.as_str()).ok_or_else(|| anyhow::anyhow!("Resend key not initialized").into())
+    RESEND_KEY
+        .get()
+        .map(|s| s.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Resend key not initialized").into())
 }
 
 fn get_current_time() -> chrono::NaiveDateTime {
@@ -175,7 +189,7 @@ async fn enrich_articles_with_metadata(
     let mut user_ids = Vec::new();
     let mut tag_ids = Vec::new();
     let mut article_ids = Vec::new();
-    
+
     for article in articles.iter() {
         if let Some(id) = article.get("id").and_then(|v| v.as_i64()) {
             article_ids.push(id as i32);
@@ -214,11 +228,11 @@ async fn enrich_articles_with_metadata(
         .map(|id| id.to_string())
         .collect::<Vec<_>>()
         .join(",");
-    
+
     if !article_ids_str.is_empty() {
         let counts_sql = format!(
             r#"
-            SELECT 
+            SELECT
                 article_id,
                 SUM(CASE WHEN source = 'view' THEN 1 ELSE 0 END) as view_count,
                 SUM(CASE WHEN source = 'comment' THEN 1 ELSE 0 END) as comment_count
@@ -231,14 +245,14 @@ async fn enrich_articles_with_metadata(
             "#,
             article_ids_str, article_ids_str
         );
-        
+
         let counts_stmt = Statement::from_string(DatabaseBackend::MySql, counts_sql);
         let counts_results = ViewTb::find()
             .from_raw_sql(counts_stmt)
             .into_json()
             .all(db)
             .await?;
-        
+
         let mut counts_map: HashMap<i32, (u64, u64)> = counts_results
             .into_iter()
             .filter_map(|v| {
@@ -253,21 +267,21 @@ async fn enrich_articles_with_metadata(
         for article in articles.iter_mut() {
             if let Some(article_id) = article.get("id").and_then(|v| v.as_i64()) {
                 let article_id = article_id as i32;
-                
+
                 // Add user name
                 if let Some(user_id) = article.get("user_id").and_then(|v| v.as_i64()) {
                     if let Some(user_name) = user_map.get(&(user_id as i32)) {
                         article["userName"] = json!(user_name);
                     }
                 }
-                
+
                 // Add tag name
                 if let Some(tag_id) = article.get("tag_id").and_then(|v| v.as_i64()) {
                     if let Some(tag_name) = tag_map.get(&(tag_id as i32)) {
                         article["tagName"] = json!(tag_name);
                     }
                 }
-                
+
                 // Add counts
                 let (view_count, comment_count) = counts_map.remove(&article_id).unwrap_or((0, 0));
                 article["read_count"] = json!(view_count);
@@ -309,7 +323,7 @@ async fn get_relative_information_from_article(
 async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>, UniformError> {
     // Optimized: Simplified SQL query without nested subquery
     let sql = r#"
-        SELECT 
+        SELECT
             a.id,
             a.title,
             COUNT(v.id) AS Counts
@@ -320,9 +334,12 @@ async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>,
         ORDER BY Counts DESC
         LIMIT 8
     "#;
-    
+
     let r = ViewTb::find()
-        .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql.to_string()))
+        .from_raw_sql(Statement::from_string(
+            DatabaseBackend::MySql,
+            sql.to_string(),
+        ))
         .into_json()
         .all(db)
         .await?;
@@ -443,10 +460,7 @@ pub async fn home(
 }
 
 #[handler]
-pub async fn render_login_view(
-    _req: &mut Request,
-    res: &mut Response,
-) -> Result<(), UniformError> {
+pub async fn render_login_view(_req: &mut Request, res: &mut Response) -> Result<(), UniformError> {
     let base_url = get_base_url()?;
     let tera = get_tera()?;
     let context = construct_context!["baseUrl"=>base_url];
@@ -521,7 +535,7 @@ pub async fn person_list(
 	R.update_time,
 	R.article_state,
     R.level,
-	COUNT( comment_tb.id ) AS comment_count 
+	COUNT( comment_tb.id ) AS comment_count
 FROM
 	(
 	SELECT
@@ -531,19 +545,19 @@ FROM
 		article_tb.update_time,
 		article_tb.article_state,
         article_tb.level,
-		COUNT( view_tb.article_id ) AS view_count 
+		COUNT( view_tb.article_id ) AS view_count
 	FROM
 		article_tb
 		LEFT JOIN tag_tb ON tag_tb.id = article_tb.tag_id
-		LEFT JOIN view_tb ON view_tb.article_id = article_tb.id 
+		LEFT JOIN view_tb ON view_tb.article_id = article_tb.id
 	WHERE
 		article_tb.user_id = ?
 	GROUP BY
-		AID 
+		AID
 	) AS R
-	LEFT JOIN comment_tb ON comment_tb.article_id = R.AID 
+	LEFT JOIN comment_tb ON comment_tb.article_id = R.AID
 GROUP BY
-	AID 
+	AID
 ORDER BY
 	R.update_time DESC
 	LIMIT ?, 10"#;
@@ -605,10 +619,7 @@ ORDER BY
 }
 
 #[handler]
-pub async fn register(
-    _req: &mut Request,
-    res: &mut Response,
-) -> Result<(), UniformError> {
+pub async fn register(_req: &mut Request, res: &mut Response) -> Result<(), UniformError> {
     let base_url = get_base_url()?;
     let tera = get_tera()?;
     let mut context = Context::new();
@@ -706,10 +717,8 @@ pub async fn post_register(
 }
 
 #[handler]
-pub async fn forgetpass(
-    _req: &mut Request,
-    res: &mut Response,
-) -> Result<(), UniformError> {
+pub async fn forgetpass(_req: &mut Request, res: &mut Response) -> Result<(), UniformError> {
+    println!("forgetpass");
     let base_url = get_base_url()?;
     let tera = get_tera()?;
     let mut context = Context::new();
@@ -811,10 +820,10 @@ async fn get_comments_from_article_id(
 	user_tb.id AS user_id,
 	user_tb.avatar,
 	user_tb.`name` AS userName,
-	user_tb.privilege AS level 
+	user_tb.privilege AS level
 FROM
 	comment_tb
-	LEFT JOIN user_tb ON comment_tb.user_id = user_tb.id 
+	LEFT JOIN user_tb ON comment_tb.user_id = user_tb.id
 WHERE
 	comment_tb.article_id = ?
 ORDER BY
@@ -844,7 +853,7 @@ async fn get_article_and_author_by_article_id(
     article_tb.user_id as user_id
 FROM
 	article_tb
-	LEFT JOIN user_tb ON user_tb.id = article_tb.user_id 
+	LEFT JOIN user_tb ON user_tb.id = article_tb.user_id
 WHERE
 	article_tb.id = ?"#;
     let sql_statement =
@@ -1493,10 +1502,7 @@ fn gen_code() -> String {
 }
 
 #[handler]
-pub async fn sendcode(
-    req: &mut Request,
-    res: &mut Response,
-) -> Result<(), UniformError> {
+pub async fn sendcode(req: &mut Request, res: &mut Response) -> Result<(), UniformError> {
     let email = req
         .form::<String>("email")
         .await

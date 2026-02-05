@@ -40,4 +40,5 @@ redis = { version = "0.32.0", features = ["tokio-comp"] }
 resend-rs = "0.15.0"
 rand = "0.9.1"
 checkmail = "0.1.1"
+#openssl = { version = "0.10", features = ["vendored"] }
 #url = "2.5.4"
