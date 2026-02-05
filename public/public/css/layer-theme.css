@@ -127,7 +127,8 @@
 /* 遮罩层 */
 .layui-layer-shade {
 	background: rgba(44, 62, 80, 0.6) !important;
-	backdrop-filter: blur(2px);
+	-webkit-backdrop-filter: blur(2px) !important;
+	backdrop-filter: blur(2px) !important;
 }
 
 /* 消息提示样式 */
@@ -326,7 +327,7 @@
 /* 响应式调整 */
 @media (max-width: 768px) {
 	.layui-layer {
-		border-radius: 12px !important;
+		border-radius: 16px !important;
 	}
 	
 	.layui-layer-title {
