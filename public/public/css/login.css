@@ -1,34 +1,80 @@
 body {
-    background-image: url("/public/images/bg-login3.png");
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     background-repeat: no-repeat;
     background-size: cover;
     min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: grid-move 20s linear infinite;
+}
+
+@keyframes grid-move {
+    0% {
+        transform: translate(0, 0);
+    }
+    100% {
+        transform: translate(50px, 50px);
+    }
 }
 
 
 
 .login-wrapper {
-    max-width: 480px;
-    padding: 20px;
+    max-width: 450px;
+    width: 90%;
+    padding: 0;
     margin: 0 auto;
     position: relative;
     box-sizing: border-box;
     z-index: 2;
+    animation: slideInDown 0.6s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .login-wrapper > .layui-form {
-    padding: 25px 30px;
-    background-color: #fff;
-    box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.19);
+    padding: 50px 40px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25), 0 0 100px rgba(102, 126, 234, 0.15);
     box-sizing: border-box;
-    border-radius: 4px;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .login-wrapper > .layui-form > h2 {
-    color: #333;
-    font-size: 18px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 32px;
+    font-weight: 700;
     text-align: center;
-    margin-bottom: 25px;
+    margin-bottom: 40px;
+    letter-spacing: 1px;
 }
 
 .login-wrapper > .layui-form > .layui-form-item {
@@ -41,25 +87,40 @@ body {
 }
 
 .login-wrapper > .layui-form > .layui-form-item > .layui-input {
-    height: 46px;
+    height: 50px;
     line-height: 1;
-    border-radius: 2px !important;
+    border-radius: 12px !important;
+    border: 2px solid #e8ecf4;
+    transition: all 0.3s ease;
+    font-size: 15px;
+}
+
+.login-wrapper > .layui-form > .layui-form-item > .layui-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    transform: translateY(-2px);
 }
 
 .login-wrapper .layui-input-icon-group > .layui-input {
-    padding-left: 46px;
+    padding-left: 50px;
 }
 
 .login-wrapper .layui-input-icon-group > .layui-icon {
-    width: 46px;
-    height: 46px;
-    line-height: 46px;
-    font-size: 20px;
-    color: #909399;
+    width: 50px;
+    height: 50px;
+    line-height: 50px;
+    font-size: 22px;
+    color: #667eea;
     position: absolute;
     left: 0;
     top: 0;
     text-align: center;
+    transition: all 0.3s ease;
+}
+
+.login-wrapper .layui-input-icon-group:focus-within > .layui-icon {
+    color: #764ba2;
+    transform: scale(1.1);
 }
 
 .login-wrapper > .layui-form > .layui-form-item.login-captcha-group {
@@ -89,10 +150,26 @@ body {
 }
 
 .login-wrapper > .layui-form .layui-btn-fluid {
-    height: 48px;
-    line-height: 48px;
+    height: 52px;
+    line-height: 52px;
     font-size: 16px;
-    border-radius: 2px !important;
+    font-weight: 600;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.login-wrapper > .layui-form .layui-btn-fluid:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+}
+
+.login-wrapper > .layui-form .layui-btn-fluid:active {
+    transform: translateY(0);
 }
 
 .login-wrapper > .layui-form > .layui-form-item.login-oauth-group > a > .layui-icon {
@@ -126,12 +203,19 @@ body {
 }
 
 .layui-btn {
-    background-color: #1E9FFF;
-    border-color: #1E9FFF;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
 }
 
 .layui-link {
-    color: #1E9FFF !important;
+    color: #667eea !important;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.layui-link:hover {
+    color: #764ba2 !important;
+    text-decoration: none;
 }
 .pull-right {
     float: right;

@@ -1485,3 +1485,90 @@ hr {
 	background: linear-gradient(to right, transparent, #667eea, transparent);
 	margin: 20px 0;
 }
+
+/* Article card improvements */
+.article-header {
+	margin-bottom: 15px;
+}
+
+.article-title-link {
+	text-decoration: none;
+}
+
+.article-title {
+	font-size: 22px;
+	font-weight: 700;
+	color: #2c3e50;
+	margin: 0;
+	line-height: 1.4;
+	transition: all 0.3s ease;
+}
+
+.article-title:hover {
+	color: #667eea;
+}
+
+.article-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.article-meta-left,
+.article-meta-right {
+	display: flex;
+	gap: 15px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.article-footer > span,
+.article-meta-left > span,
+.article-meta-right > span {
+	display: inline-flex;
+	align-items: center;
+	padding: 6px 12px;
+	background: #f8f9fa;
+	border-radius: 20px;
+	font-size: 12px;
+	transition: all 0.3s ease;
+}
+
+.article-footer > span:hover,
+.article-meta-left > span:hover,
+.article-meta-right > span:hover {
+	background: #e9ecef;
+	transform: translateY(-2px);
+}
+
+.article-footer i {
+	color: #667eea;
+	margin-right: 4px;
+}
+
+@media (max-width: 768px) {
+	.article-footer {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+	
+	.article-meta-left,
+	.article-meta-right {
+		width: 100%;
+	}
+}
+
+/* Delete button styles */
+.deleteButton {
+	cursor: pointer;
+	color: #e74c3c !important;
+	transition: all 0.3s ease;
+}
+
+.deleteButton:hover {
+	background: #e74c3c !important;
+	color: white !important;
+	transform: translateY(-2px);
+}

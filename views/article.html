@@ -54,21 +54,18 @@
 			</blockquote>
 			<div class="blog-main">
 				<div class="">
-					<div class="shadow"
-						style="text-align:center;font-size:16px;padding:40px 15px;background:#fff;margin-bottom:15px;">
-						<div>
-							<h3>{{info.title}}</h3>
+					<div class="shadow article-detail-container">
+						<div class="article-detail-header">
+							<h1 class="article-detail-title">{{info.title}}</h1>
 						</div>
 						<div class="article-subtitle">
 							<span><i
 									class="layui-icon layui-icon-file-b"></i>{{info.create_time | date(format="%Y-%m-%d %H:%M")}}</span>
 							<span><i
 									class="layui-icon layui-icon-edit"></i>{{info.update_time | date(format="%Y-%m-%d %H:%M")}}</span>
-							<span><i class="layui-icon layui-icon-username"></i>作者:</span>
-							<span>{{info.userName}}</span>
+							<span><i class="layui-icon layui-icon-username"></i>作者: {{info.userName}}</span>
 						</div>
-						<hr />
-						<div id="article-content"></div>
+						<div id="article-content" class="article-detail-content"></div>
 					</div>
 
 				</div>
