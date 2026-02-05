@@ -347,6 +347,10 @@ async fn main() {
 
     let router = router.push(upload_router);
 
+    // Static file router: matches URLs starting with /public/* (e.g., /public/css/login.css)
+    // Serves files from the "public/" directory
+    // Note: Using "public/{**path}" instead of "{**path}" to avoid conflicts with application routes
+    // The nested directory structure (public/public/*) is by design
     let router_static_asserts = Router::with_path("public/{**path}")
         .hoop(Compression::new().enable_gzip(CompressionLevel::Fastest))
         .get(
@@ -355,9 +359,11 @@ async fn main() {
                 .auto_list(false),
         );
 
+    // Router order matters: application routes are checked before static routes
+    // This ensures /login, /register, /forget, etc. are handled by application handlers
     let root_router = Router::new()
-        .push(router)
-        .push(router_static_asserts);
+        .push(router)                // Application routes (login, register, forget, etc.)
+        .push(router_static_asserts); // Static files (/public/*)
 
     tracing::info!("Listening on {}", bind_addr);
     let acceptor = TcpListener::new(bind_addr).bind().await;
