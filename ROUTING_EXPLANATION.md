@@ -43,12 +43,12 @@ let router_static_asserts = Router::with_path("public/{**path}")
 ```
 
 这样：
-- 静态资源请求 `/public/css/login.css` → 匹配静态路由 → 提供文件 `public/public/css/login.css`
-- 应用路由 `/login`、`/register`、`/forget` → 不匹配静态路由 → 由应用路由处理
+- 静态资源请求 `/public/css/login.css` -> 匹配静态路由 -> 提供文件 `public/public/css/login.css`
+- 应用路由 `/login`、`/register`、`/forget` -> 不匹配静态路由 -> 由应用路由处理
 
 This way:
-- Static resource requests `/public/css/login.css` → Match static router → Serve file `public/public/css/login.css`
-- Application routes `/login`, `/register`, `/forget` → Don't match static router → Handled by application routes
+- Static resource requests `/public/css/login.css` -> Match static router -> Serve file `public/public/css/login.css`
+- Application routes `/login`, `/register`, `/forget` -> Don't match static router -> Handled by application routes
 
 ### 为什么之前 /login 和 /register 可能"正常"工作？ / Why might /login and /register have "worked" before?
 
@@ -70,9 +70,9 @@ public/
     └── ...
 ```
 
-模板中引用: `{{baseUrl | safe}}public/css/login.css` → `/public/css/login.css`
+模板中引用: `{{baseUrl | safe}}public/css/login.css` -> `/public/css/login.css`
 
-Templates reference: `{{baseUrl | safe}}public/css/login.css` → `/public/css/login.css`
+Templates reference: `{{baseUrl | safe}}public/css/login.css` -> `/public/css/login.css`
 
 ## 结论 / Conclusion
 
