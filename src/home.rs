@@ -25,6 +25,7 @@ use jsonwebtoken::{self, EncodingKey};
 
 use ::serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
+use std::collections::HashMap;
 
 // Static global variables for application-lifetime resources
 static DB: OnceLock<DatabaseConnection> = OnceLock::new();
@@ -160,7 +161,126 @@ fn get_current_time() -> chrono::NaiveDateTime {
     Local::now().naive_local()
 }
 
+/// Optimized: Enrich article data with metadata in a single batch operation
+/// Solves N+1 query problem by using batch queries instead of per-article queries
+async fn enrich_articles_with_metadata(
+    articles: &mut [JsonValue],
+    db: &DatabaseConnection,
+) -> Result<(), UniformError> {
+    if articles.is_empty() {
+        return Ok(());
+    }
+
+    // Extract unique IDs
+    let mut user_ids = Vec::new();
+    let mut tag_ids = Vec::new();
+    let mut article_ids = Vec::new();
+    
+    for article in articles.iter() {
+        if let Some(id) = article.get("id").and_then(|v| v.as_i64()) {
+            article_ids.push(id as i32);
+        }
+        if let Some(uid) = article.get("user_id").and_then(|v| v.as_i64()) {
+            user_ids.push(uid as i32);
+        }
+        if let Some(tid) = article.get("tag_id").and_then(|v| v.as_i64()) {
+            tag_ids.push(tid as i32);
+        }
+    }
+
+    // Batch fetch users
+    let users = UserTb::find()
+        .filter(user_tb::Column::Id.is_in(user_ids))
+        .all(db)
+        .await?;
+    let user_map: HashMap<i32, String> = users
+        .into_iter()
+        .map(|u| (u.id, u.name.unwrap_or_default()))
+        .collect();
+
+    // Batch fetch tags
+    let tags = TagTb::find()
+        .filter(tag_tb::Column::Id.is_in(tag_ids))
+        .all(db)
+        .await?;
+    let tag_map: HashMap<i32, String> = tags
+        .into_iter()
+        .map(|t| (t.id, t.name.unwrap_or_default()))
+        .collect();
+
+    // Batch fetch view and comment counts with optimized SQL
+    let article_ids_str = article_ids
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    
+    if !article_ids_str.is_empty() {
+        let counts_sql = format!(
+            r#"
+            SELECT 
+                article_id,
+                SUM(CASE WHEN source = 'view' THEN 1 ELSE 0 END) as view_count,
+                SUM(CASE WHEN source = 'comment' THEN 1 ELSE 0 END) as comment_count
+            FROM (
+                SELECT article_id, 'view' as source FROM view_tb WHERE article_id IN ({})
+                UNION ALL
+                SELECT article_id, 'comment' as source FROM comment_tb WHERE article_id IN ({})
+            ) combined
+            GROUP BY article_id
+            "#,
+            article_ids_str, article_ids_str
+        );
+        
+        let counts_stmt = Statement::from_string(DatabaseBackend::MySql, counts_sql);
+        let counts_results = ViewTb::find()
+            .from_raw_sql(counts_stmt)
+            .into_json()
+            .all(db)
+            .await?;
+        
+        let mut counts_map: HashMap<i32, (u64, u64)> = counts_results
+            .into_iter()
+            .filter_map(|v| {
+                let article_id = v.get("article_id")?.as_i64()? as i32;
+                let view_count = v.get("view_count")?.as_u64().unwrap_or(0);
+                let comment_count = v.get("comment_count")?.as_u64().unwrap_or(0);
+                Some((article_id, (view_count, comment_count)))
+            })
+            .collect();
+
+        // Enrich articles with fetched data
+        for article in articles.iter_mut() {
+            if let Some(article_id) = article.get("id").and_then(|v| v.as_i64()) {
+                let article_id = article_id as i32;
+                
+                // Add user name
+                if let Some(user_id) = article.get("user_id").and_then(|v| v.as_i64()) {
+                    if let Some(user_name) = user_map.get(&(user_id as i32)) {
+                        article["userName"] = json!(user_name);
+                    }
+                }
+                
+                // Add tag name
+                if let Some(tag_id) = article.get("tag_id").and_then(|v| v.as_i64()) {
+                    if let Some(tag_name) = tag_map.get(&(tag_id as i32)) {
+                        article["tagName"] = json!(tag_name);
+                    }
+                }
+                
+                // Add counts
+                let (view_count, comment_count) = counts_map.remove(&article_id).unwrap_or((0, 0));
+                article["read_count"] = json!(view_count);
+                article["commentCount"] = json!(comment_count);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Return UserTb::Model, TagTb::Model, view_count, comment_count
+/// Note: This function is kept for backward compatibility but should be replaced with batch version
 async fn get_relative_information_from_article(
     article_id: u64,
     user_id: u64,
@@ -187,33 +307,22 @@ async fn get_relative_information_from_article(
 }
 
 async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>, UniformError> {
+    // Optimized: Simplified SQL query without nested subquery
+    let sql = r#"
+        SELECT 
+            a.id,
+            a.title,
+            COUNT(v.id) AS Counts
+        FROM article_tb a
+        LEFT JOIN view_tb v ON a.id = v.article_id
+        WHERE a.level <> 999 AND a.article_state = 1
+        GROUP BY a.id, a.title
+        ORDER BY Counts DESC
+        LIMIT 8
+    "#;
+    
     let r = ViewTb::find()
-        .from_raw_sql(Statement::from_string(
-            DatabaseBackend::MySql,
-            String::from(
-                r#"
-		SELECT
-		    T.title , T.id , T.Counts
-			FROM
-				(
-				SELECT
-					a.id,
-					a.title,
-					COUNT( c.id ) AS Counts 
-				FROM
-					article_tb a
-					LEFT JOIN view_tb c ON a.id = c.article_id 
-                WHERE
-                    a.`level` <> 999 
-                    AND a.article_state = 1 
-				GROUP BY
-					a.id 
-				) AS T 
-			ORDER BY 
-			T.Counts DESC LIMIT 8;
-	"#,
-            ),
-        ))
+        .from_raw_sql(Statement::from_string(DatabaseBackend::MySql, sql.to_string()))
         .into_json()
         .all(db)
         .await?;
@@ -274,22 +383,15 @@ pub async fn home(
         .paginate(db, 10);
     let tera = get_tera()?;
     let total_count = pagination.num_items().await?;
-    let total_pages = pagination.num_pages().await?;
+    // Optimized: Calculate total_pages locally to avoid redundant COUNT query
+    let total_pages = (total_count + 9) / 10;
     if page != 0 && (page + 1) > total_pages {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
     }
     let mut data = pagination.fetch_page(page).await?;
 
-    for model in &mut data {
-        let id = model.get("id").to_result()?.as_u64().to_result()?;
-        let tag_id = model.get("tag_id").to_result()?.as_u64().to_result()?;
-        let user_id = model.get("user_id").to_result()?.as_u64().to_result()?;
-        let result = get_relative_information_from_article(id, user_id, tag_id, db).await?;
-        model["userName"] = json!(result.0.name);
-        model["tagName"] = json!(result.1.name);
-        model["read_count"] = json!(result.2);
-        model["commentCount"] = json!(result.3);
-    }
+    // Optimized: Use batch query instead of N+1 queries (was 40+ queries, now 3-4)
+    enrich_articles_with_metadata(&mut data, db).await?;
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
@@ -1318,22 +1420,15 @@ pub async fn search(
 
     let tera = get_tera()?;
     let total_count = pagination.num_items().await?;
-    let total_pages = pagination.num_pages().await?;
+    // Optimized: Calculate total_pages locally to avoid redundant COUNT query
+    let total_pages = (total_count + 9) / 10;
     if page != 0 && (page + 1) > total_pages {
         return Err(UniformError(anyhow::anyhow!("请求的资源不存在")));
     }
     let mut data = pagination.fetch_page(page).await?;
 
-    for model in &mut data {
-        let id = model.get("id").to_result()?.as_u64().to_result()?;
-        let tag_id = model.get("tag_id").to_result()?.as_u64().to_result()?;
-        let user_id = model.get("user_id").to_result()?.as_u64().to_result()?;
-        let result = get_relative_information_from_article(id, user_id, tag_id, db).await?;
-        model["userName"] = json!(result.0.name);
-        model["tagName"] = json!(result.1.name);
-        model["read_count"] = json!(result.2);
-        model["commentCount"] = json!(result.3);
-    }
+    // Optimized: Use batch query instead of N+1 queries
+    enrich_articles_with_metadata(&mut data, db).await?;
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
