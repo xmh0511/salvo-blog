@@ -11,6 +11,8 @@ layui.use('jquery', function () {
     $(function () {
         //播放公告
         playAnnouncement(3000);
+        //画canvas
+        window.canvasController = DrawCanvas();
     });
     function playAnnouncement(interval) {
         var index = 0;
@@ -24,8 +26,6 @@ layui.use('jquery', function () {
             $announcement.eq(index).stop(true, true).fadeIn().siblings('span').fadeOut();  //下标对应的图片显示，同辈元素隐藏
         }, interval);
     }
-    //画canvas
-    DrawCanvas();
 });
 
 // function DrawCanvas() {
@@ -201,203 +201,177 @@ layui.use('jquery', function () {
 
 
 function DrawCanvas(){
-	var canvas  = document.getElementById('canvas-banner'),
+	var canvas = document.getElementById('canvas-banner'),
 	ctx = canvas.getContext('2d'),
 	WIDTH,
 	HEIGHT,
-	mouseMoving = false,
-	mouseMoveChecker,
-	mouseX,
-	mouseY,
-	stars = [],
-	initStarsPopulation = 80,
-	dots = [],
-	dotsMinDist = 2,
-	maxDistFromCursor = 50;
+	particles = [],
+	particleCount = 60,
+	connectionDistance = 150,
+	mouse = {
+		x: null,
+		y: null,
+		radius: 150
+	};
+
 	WIDTH = window.document.body.clientWidth;
 	if (screen.width >= 992) {
 		HEIGHT = window.innerHeight * 1 / 2;
 	} else {
 		HEIGHT = window.innerHeight * 2 / 7;
-	}                  
+	}
 
 	canvas.setAttribute("width", WIDTH);
 	canvas.setAttribute("height", HEIGHT);
-	ctx.strokeStyle = "white";
-	ctx.shadowColor = "white";
-	for (var i = 0; i < initStarsPopulation; i++) {
-		stars[i] = new Star(i, Math.floor(Math.random()*WIDTH), Math.floor(Math.random()*HEIGHT));
-		//stars[i].draw();
-	}
-	ctx.shadowBlur = 0;
 
-	function Star(id, x, y){
-		this.id = id;
-		this.x = x;
-		this.y = y;
-		this.r = Math.floor(Math.random()*2)+1;
-		var alpha = (Math.floor(Math.random()*10)+1)/10/2;
-		this.color = "rgba(255,255,255,"+alpha+")";
+	// Particle class with modern floating effect
+	function Particle() {
+		this.x = Math.random() * WIDTH;
+		this.y = Math.random() * HEIGHT;
+		this.size = Math.random() * 3 + 1;
+		this.speedX = Math.random() * 1 - 0.5;
+		this.speedY = Math.random() * 1 - 0.5;
+		this.opacity = Math.random() * 0.5 + 0.3;
 	}
-	
-	Star.prototype.draw = function() {
-		ctx.fillStyle = this.color;
-		ctx.shadowBlur = this.r * 2;
+
+	Particle.prototype.update = function() {
+		this.x += this.speedX;
+		this.y += this.speedY;
+
+		// Bounce off walls
+		if (this.x > WIDTH || this.x < 0) {
+			this.speedX = -this.speedX;
+		}
+		if (this.y > HEIGHT || this.y < 0) {
+			this.speedY = -this.speedY;
+		}
+
+		// Mouse interaction
+		if (mouse.x !== null && mouse.y !== null) {
+			let dx = mouse.x - this.x;
+			let dy = mouse.y - this.y;
+			let distance = Math.sqrt(dx * dx + dy * dy);
+			if (distance < mouse.radius) {
+				let force = (mouse.radius - distance) / mouse.radius;
+				let directionX = dx / distance;
+				let directionY = dy / distance;
+				this.x -= directionX * force * 3;
+				this.y -= directionY * force * 3;
+			}
+		}
+	}
+
+	Particle.prototype.draw = function() {
+		ctx.fillStyle = 'rgba(255, 255, 255, ' + this.opacity + ')';
 		ctx.beginPath();
-		ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-		ctx.closePath();
+		ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
 		ctx.fill();
 	}
-	
-	Star.prototype.move = function() {
-		this.y -= .15;
-		if (this.y <= -10) this.y = HEIGHT + 10;
-		this.draw();
-	}
-	
-	Star.prototype.die = function() {
-		stars[this.id] = null;
-		delete stars[this.id];
-	}
-	
-	
-	function Dot(id, x, y, r) {
-		this.id = id;
-		this.x = x;
-		this.y = y;
-		this.r = Math.floor(Math.random()*5)+1;
-		this.maxLinks = 2;
-		this.speed = .5;
-		this.a = .5;
-		this.aReduction = .005;
-		this.color = "rgba(255,255,255,"+this.a+")";
-		this.linkColor = "rgba(255,255,255,"+this.a/4+")";
-	
-		this.dir = Math.floor(Math.random()*140)+200;
-	}
-	
-	Dot.prototype.draw = function() {
-		ctx.fillStyle = this.color;
-		ctx.shadowBlur = this.r * 2;
-		ctx.beginPath();
-		ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
-		ctx.closePath();
-		ctx.fill();
-	}
-	
-	Dot.prototype.link = function() {
-		if (this.id == 0) return;
-		var previousDot1 = getPreviousDot(this.id, 1);
-		var previousDot2 = getPreviousDot(this.id, 2);
-		var previousDot3 = getPreviousDot(this.id, 3);
-		if (!previousDot1) return;
-		ctx.strokeStyle = this.linkColor;
-		ctx.moveTo(previousDot1.x, previousDot1.y);
-		ctx.beginPath();
-		ctx.lineTo(this.x, this.y);
-		if (previousDot2 != false) ctx.lineTo(previousDot2.x, previousDot2.y);
-		if (previousDot3 != false) ctx.lineTo(previousDot3.x, previousDot3.y);
-		ctx.stroke();
-		ctx.closePath();
-	}
-	
-	function getPreviousDot(id, stepback) {
-		if (id == 0 || id - stepback < 0) return false;
-		if (typeof dots[id - stepback] != "undefined") return dots[id - stepback];
-		else return false;//getPreviousDot(id - stepback);
-	}
-	
-	Dot.prototype.move = function() {
-		this.a -= this.aReduction;
-		if (this.a <= 0) {
-			this.die();
-			return
+
+	// Initialize particles
+	function init() {
+		particles = [];
+		for (let i = 0; i < particleCount; i++) {
+			particles.push(new Particle());
 		}
-		this.color = "rgba(255,255,255,"+this.a+")";
-		this.linkColor = "rgba(255,255,255,"+this.a/4+")";
-		this.x = this.x + Math.cos(degToRad(this.dir))*this.speed,
-		this.y = this.y + Math.sin(degToRad(this.dir))*this.speed;
-	
-		this.draw();
-		this.link();
-	}
-	
-	Dot.prototype.die = function() {
-		dots[this.id] = null;
-		delete dots[this.id];
-	}
-	const drawIfMouseMoving = function(){
-		if (!mouseMoving) return;
-	
-		if (dots.length == 0) {
-			dots[0] = new Dot(0, mouseX, mouseY);
-			dots[0].draw();
-			return;
-		}
-	
-		var previousDot = getPreviousDot(dots.length, 1);
-		var prevX = previousDot.x; 
-		var prevY = previousDot.y; 
-	
-		var diffX = Math.abs(prevX - mouseX);
-		var diffY = Math.abs(prevY - mouseY);
-	
-		if (diffX < dotsMinDist || diffY < dotsMinDist) return;
-	
-		var xVariation = Math.random() > .5 ? -1 : 1;
-		xVariation = xVariation*Math.floor(Math.random()*maxDistFromCursor)+1;
-		var yVariation = Math.random() > .5 ? -1 : 1;
-		yVariation = yVariation*Math.floor(Math.random()*maxDistFromCursor)+1;
-		dots[dots.length] = new Dot(dots.length, mouseX+xVariation, mouseY+yVariation);
-		dots[dots.length-1].draw();
-		dots[dots.length-1].link();
 	}
 
-	const animate = ()=>{
-		ctx.clearRect(0, 0, WIDTH, HEIGHT);
+	// Connect particles with lines
+	function connect() {
+		for (let a = 0; a < particles.length; a++) {
+			for (let b = a + 1; b < particles.length; b++) {
+				let dx = particles[a].x - particles[b].x;
+				let dy = particles[a].y - particles[b].y;
+				let distance = Math.sqrt(dx * dx + dy * dy);
 
-		for (var i in stars) {
-			stars[i].move();
+				if (distance < connectionDistance) {
+					let opacity = 1 - (distance / connectionDistance);
+					ctx.strokeStyle = 'rgba(102, 126, 234, ' + opacity * 0.3 + ')';
+					ctx.lineWidth = 1;
+					ctx.beginPath();
+					ctx.moveTo(particles[a].x, particles[a].y);
+					ctx.lineTo(particles[b].x, particles[b].y);
+					ctx.stroke();
+				}
+			}
 		}
-		for (var i in dots) {
-			dots[i].move();
+	}
+
+	// Animation loop
+	function animate() {
+		// Create gradient background effect
+		let gradient = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
+		gradient.addColorStop(0, 'rgba(102, 126, 234, 0.05)');
+		gradient.addColorStop(0.5, 'rgba(118, 75, 162, 0.05)');
+		gradient.addColorStop(1, 'rgba(102, 126, 234, 0.05)');
+		ctx.fillStyle = gradient;
+		ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+		// Update and draw particles
+		for (let i = 0; i < particles.length; i++) {
+			particles[i].update();
+			particles[i].draw();
 		}
-		drawIfMouseMoving();
+
+		// Draw connections
+		connect();
+
 		requestAnimationFrame(animate);
 	}
+
+	// Mouse event handlers
+	canvas.addEventListener('mousemove', function(e) {
+		mouse.x = e.offsetX;
+		mouse.y = e.offsetY;
+	});
+
+	canvas.addEventListener('mouseleave', function() {
+		mouse.x = null;
+		mouse.y = null;
+	});
+
+	// Handle touch events for mobile
+	canvas.addEventListener('touchmove', function(e) {
+		e.preventDefault();
+		let rect = canvas.getBoundingClientRect();
+		mouse.x = e.touches[0].clientX - rect.left;
+		mouse.y = e.touches[0].clientY - rect.top;
+	});
+
+	canvas.addEventListener('touchend', function() {
+		mouse.x = null;
+		mouse.y = null;
+	});
+
+	init();
 	animate();
-
-	window.onmousemove = function(e){
-		mouseMoving = true;
-		mouseX = e.clientX;
-		mouseY = e.clientY;
-		clearInterval(mouseMoveChecker);
-		mouseMoveChecker = setTimeout(function() {
-			mouseMoving = false;
-		}, 100);
-	}
+	
+	// Return an object with methods to update dimensions
+	return {
+		updateDimensions: function() {
+			WIDTH = window.document.body.clientWidth;
+			if (screen.width >= 992) {
+				HEIGHT = window.innerHeight * 1 / 2;
+			} else {
+				HEIGHT = window.innerHeight * 2 / 7;
+			}
+			canvas.setAttribute("width", WIDTH);
+			canvas.setAttribute("height", HEIGHT);
+			init(); // Reinitialize particles with new dimensions
+		}
+	};
 }
 
 
 
 
-
-//setInterval(drawIfMouseMoving, 17);
-
-function degToRad(deg) {
-	return deg * (Math.PI / 180);
-}
 
 //监听窗口大小改变
 window.addEventListener("resize", resizeCanvas, false);
 
-//窗口大小改变时改变canvas宽度
+//窗口大小改变时更新canvas尺寸
 function resizeCanvas() {
-    var canvas = document.getElementById('canvas-banner');
-	canvas.width = window.document.body.clientWidth ;//减去滚动条的宽度
-	if (screen.width >= 992) {
-		canvas.height = window.innerHeight * 1 / 2;
-	} else {
-		canvas.height = window.innerHeight * 2 / 7;
+	if (window.canvasController) {
+		window.canvasController.updateDimensions();
 	}
 }

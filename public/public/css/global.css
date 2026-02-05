@@ -1251,8 +1251,9 @@ body {
 
 .canvas-banner-container {
 	position: relative;
-	background: linear-gradient(to bottom, #000000 0%, #5788fe 100%);
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 	display: flex;
+	overflow: hidden;
 }
 
 .canvas-filter {
@@ -1261,22 +1262,22 @@ body {
 	position: absolute;
 	top: 0;
 	left: 0;
-	background: #fe5757;
-	animation: colorChange 30s ease-in-out infinite;
-	animation-fill-mode: none;
-	animation-fill-mode: both;
-	mix-blend-mode: overlay;
+	background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #4facfe);
+	background-size: 400% 400%;
+	animation: gradientShift 15s ease infinite;
+	mix-blend-mode: soft-light;
+	opacity: 0.3;
 }
 
-@keyframes colorChange {
-
-	0%,
-	100% {
-		opacity: 0;
+@keyframes gradientShift {
+	0% {
+		background-position: 0% 50%;
 	}
-
 	50% {
-		opacity: .9;
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
 	}
 }
 
