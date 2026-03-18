@@ -24,8 +24,10 @@
 	<link href="{{baseUrl | safe}}public/css/article.css" rel="stylesheet" />
 	<link rel="stylesheet" href="{{baseUrl | safe}}public/markdown/css/editormd.min.css">
 	<link rel="stylesheet" href="{{baseUrl | safe}}public/markdown/css/editormd.preview.min.css">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/katex/katex.min.css">
 	<script type="text/javascript" src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/editormd.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/katex/katex.min.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/marked.min.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/prettify.min.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/flowchart.min.js"></script>
@@ -157,10 +159,19 @@
 		ext: ".png",
 		path: "{{baseUrl | safe}}public/emojis/"
 	};
+	// Pre-process the markdown to protect math expressions ($$...$$) from
+	// marked.js GFM emphasis processing, which consumes underscores (_) inside
+	// math formulas and passes HTML markup (<em> tags) to KaTeX, breaking rendering.
+	var mathTexts = [];
+	var rawMarkdown = $("#article_data").text();
+	var processedMarkdown = rawMarkdown.replace(/\$\$([\s\S]*?)\$\$/g, function(match, content) {
+		var idx = mathTexts.length;
+		mathTexts.push(content);
+		return '$$MATHPLACEHOLDER' + idx + 'X$$';
+	});
 	testEditormdView = editormd.markdownToHTML("article-content", {
-		markdown: $("#article_data").text(),//+ "\r\n" + $("#append-test").text(),
+		markdown: processedMarkdown,
 		markdownSourceCode : true, // 是否保留 Markdown 源码，即是否删除保存源码的 Textarea 标签
-		htmlDecode      : true,       // 开启 HTML 标签解析，为了安全性，默认不开启
 		htmlDecode: "style,script,iframe",  // you can filter tags decode
 		//toc             : false,
 		//tocContainer    : "#custom-toc-container", // 自定义 ToC 容器层
@@ -169,11 +180,32 @@
 		tocm: false,    // Using [TOCM]
 		emoji: true,
 		taskList: true,
-		tex: true,  // 默认不解析
+		tex: false,  // Disable built-in KaTeX; we render math manually below
 		flowChart: true,  // 默认不解析
 		sequenceDiagram: true,  // 默认不解析
 		htmlDecode : true,
 	});
+	// After markdown rendering, apply KaTeX using the original (unprocessed) math content.
+	// KaTeX is pre-loaded via <script> tag above, so this can run synchronously.
+	if (mathTexts.length > 0) {
+		$("#article-content .editormd-tex").each(function() {
+			var el = $(this);
+			var text = el.text().trim();
+			var match = text.match(/^MATHPLACEHOLDER(\d+)X$/);
+			if (match) {
+				var mathContent = mathTexts[parseInt(match[1], 10)];
+				if (mathContent !== undefined) {
+					try {
+						katex.render(mathContent, el[0]);
+						el.find(".katex").css("font-size", "1.6em"); // match editormd's default katex font size
+					} catch(e) {
+						console.error("KaTeX rendering failed:", e);
+						el.text(mathContent);
+					}
+				}
+			}
+		});
+	}
 	var editor = editormd("comment", {
             width: "100%",
             height: "100%",
