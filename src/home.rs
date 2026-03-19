@@ -234,8 +234,8 @@ async fn enrich_articles_with_metadata(
             r#"
             SELECT
                 article_id,
-                SUM(CASE WHEN source = 'view' THEN 1 ELSE 0 END) as view_count,
-                SUM(CASE WHEN source = 'comment' THEN 1 ELSE 0 END) as comment_count
+                COUNT(CASE WHEN source = 'view' THEN 1 END) as view_count,
+                COUNT(CASE WHEN source = 'comment' THEN 1 END) as comment_count
             FROM (
                 SELECT article_id, 'view' as source FROM view_tb WHERE article_id IN ({})
                 UNION ALL
@@ -257,8 +257,20 @@ async fn enrich_articles_with_metadata(
             .into_iter()
             .filter_map(|v| {
                 let article_id = v.get("article_id")?.as_i64()? as i32;
-                let view_count = v.get("view_count")?.as_u64().unwrap_or(0);
-                let comment_count = v.get("comment_count")?.as_u64().unwrap_or(0);
+                let view_count = v
+                    .get("view_count")
+                    .and_then(|val| {
+                        val.as_u64()
+                            .or_else(|| val.as_str().and_then(|s| s.parse().ok()))
+                    })
+                    .unwrap_or(0);
+                let comment_count = v
+                    .get("comment_count")
+                    .and_then(|val| {
+                        val.as_u64()
+                            .or_else(|| val.as_str().and_then(|s| s.parse().ok()))
+                    })
+                    .unwrap_or(0);
                 Some((article_id, (view_count, comment_count)))
             })
             .collect();
