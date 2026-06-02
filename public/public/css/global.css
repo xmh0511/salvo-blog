@@ -1,7 +1,7 @@
 ﻿/*
 
-@Name：不落阁整站模板源码 
-@Author：Absolutely 
+@Name：不落阁整站模板源码
+@Author：Absolutely
 @Site：http://www.lyblogs.cn
 
 */
@@ -1413,7 +1413,6 @@ body {
 
 .layui-btn-primary:hover {
 	background: transparent;
-	color: white;
 	border-color: #667eea;
 }
 
@@ -1557,7 +1556,7 @@ hr {
 		flex-direction: column;
 		align-items: flex-start;
 	}
-	
+
 	.article-meta-left,
 	.article-meta-right {
 		width: 100%;
@@ -1576,4 +1575,3 @@ hr {
 	color: white !important;
 	transform: translateY(-2px);
 }
-
