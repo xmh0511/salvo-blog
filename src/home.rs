@@ -1043,9 +1043,9 @@ pub async fn read_article(
                 .one(db)
                 .await?
                 .to_result()?;
-            let currend_id = data.claims.user_id.parse::<u64>()?;
+            let current_id = data.claims.user_id.parse::<u64>()?;
             if need_level == 999 {
-                if currend_id
+                if current_id
                     == article_model
                         .get("user_id")
                         .to_result()?
@@ -1054,17 +1054,17 @@ pub async fn read_article(
                 {
                     let comments = get_comments_from_article_id(article_id, db).await?;
                     let unread_count =
-                        get_unread_message_count::<RESPONSE_TEXT_FOR_ERROR>(currend_id as i32, db)
+                        get_unread_message_count::<RESPONSE_TEXT_FOR_ERROR>(current_id as i32, db)
                             .await
                             .unwrap_or_default();
                     let recent_messages = get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(
-                        currend_id as i32,
+                        current_id as i32,
                         6,
                         db,
                     )
                     .await
                     .unwrap_or_default();
-                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
+                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>current_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
                     let r = tera.render("article.html", &context)?;
                     res.render(Text::Html(r));
                 } else {
@@ -1076,17 +1076,17 @@ pub async fn read_article(
                 increase_view_count(article_id, db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
                 let unread_count =
-                    get_unread_message_count::<RESPONSE_TEXT_FOR_ERROR>(currend_id as i32, db)
+                    get_unread_message_count::<RESPONSE_TEXT_FOR_ERROR>(current_id as i32, db)
                         .await
                         .unwrap_or_default();
                 let recent_messages = get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(
-                    currend_id as i32,
+                    current_id as i32,
                     6,
                     db,
                 )
                 .await
                 .unwrap_or_default();
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
+                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>current_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
                 let r = tera.render("article.html", &context)?;
                 res.render(Text::Html(r));
             } else {
