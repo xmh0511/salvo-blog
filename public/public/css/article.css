@@ -15,6 +15,9 @@
 .article-message-box {
 	position: relative;
 	float: right;
+	height: 64px;
+	display: flex;
+	align-items: center;
 }
 
 .article-message-trigger {
@@ -25,6 +28,10 @@
 	background: #fff;
 	cursor: pointer;
 	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
 }
 
 .article-message-trigger i {

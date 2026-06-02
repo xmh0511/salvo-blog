@@ -100,11 +100,20 @@
 	width: 36px !important;
 	height: 36px !important;
 	line-height: 36px !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
 	border-radius: 50% !important;
 	right: 15px !important;
 	top: 15px !important;
 	transition: all 0.3s ease !important;
 	font-size: 18px !important;
+}
+
+.layui-layer-setwin .layui-layer-close::before {
+	content: "×";
+	font-size: 20px !important;
+	line-height: 1 !important;
 }
 
 .layui-layer-setwin .layui-layer-close:hover {
