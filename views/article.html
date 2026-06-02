@@ -265,10 +265,14 @@
 			const link = $(this);
 			const href = link.attr("href");
 			const id = link.attr("data-id");
-			$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function () {
-				window.location.href = href;
+			$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function (r) {
+				if (r.code === 200) {
+					window.location.href = href;
+				} else {
+					layer.msg(r.msg || "标记已读失败", { icon: 5 });
+				}
 			}, "JSON").fail(function () {
-				window.location.href = href;
+				layer.msg("网络错误，未能标记已读", { icon: 5 });
 			});
 		});
 
