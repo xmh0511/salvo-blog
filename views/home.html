@@ -131,10 +131,41 @@
 										<i class="layui-icon layui-icon-logout"></i>退出登录
 									</button>
 								</p>
-								<p><a class="post-counter"
-										href="{{baseUrl | safe}}list/1"><span>帖子:</span>{{login.post_count}}</a></p>
-								<p><a class="post-counter"
-										href="{{baseUrl | safe}}messages"><span>消息:</span>{{login.unread_count}}</a></p>
+								<div class="counter-row">
+									<a class="post-counter counter-card" href="{{baseUrl | safe}}list/1">
+										<span>帖子</span>
+										<strong>{{login.post_count}}</strong>
+									</a>
+									<a class="post-counter counter-card {% if login.unread_count > 0 %}counter-card-unread{% endif %}"
+										href="{{baseUrl | safe}}messages">
+										<span>未读消息</span>
+										<strong>{{login.unread_count}}</strong>
+									</a>
+								</div>
+								<div class="message-inline-box">
+									<button type="button" class="message-inline-trigger">
+										<i class="fa fa-envelope-o"></i>
+										<span>站内信</span>
+										{% if login.unread_count > 0 %}
+										<em class="inline-unread-badge">{{login.unread_count}}</em>
+										{% endif %}
+									</button>
+									<div class="message-inline-panel layui-hide">
+										<div class="message-inline-header">最近消息</div>
+										{% if recentMessages | length == 0 %}
+										<div class="message-inline-empty">暂无消息</div>
+										{% endif %}
+										{% for msg in recentMessages %}
+										<a class="message-inline-item {% if msg.is_read == 0 %}message-inline-item-unread{% endif %} inline-jump-btn"
+											data-id="{{msg.id}}"
+											href="{{baseUrl | safe}}article/{{msg.article_id}}#comment-{{msg.comment_id}}">
+											<div class="message-inline-title">@{{msg.from_user_name | default(value="未知用户")}}</div>
+											<div class="message-inline-text">在《{{msg.article_title | default(value="文章已删除")}}》提到了你</div>
+										</a>
+										{% endfor %}
+										<a class="message-inline-more" href="{{baseUrl | safe}}messages">查看完整消息历史</a>
+									</div>
+								</div>
 							</div>
 						</div>
 						<hr />
@@ -211,10 +242,11 @@
 	}
 </script>
 <script>
-	layui.use(['laypage', "upload", 'form'], function () {
+	layui.use(['laypage', "upload", 'form', 'layer'], function () {
 		var laypage = layui.laypage;
 		var upload = layui.upload;
 		var form = layui.form;
+		var layer = layui.layer;
 
 		//执行一个laypage实例
 		laypage.render({
@@ -260,6 +292,28 @@
 			, error: function () {
 				//请求异常回调
 			}
+		});
+
+		$(".message-inline-trigger").off("click").on("click", function (e) {
+			e.stopPropagation();
+			$(".message-inline-panel").toggleClass("layui-hide");
+		});
+		$(document).off("click.inlineMessage").on("click.inlineMessage", function () {
+			$(".message-inline-panel").addClass("layui-hide");
+		});
+		$(".message-inline-panel").off("click").on("click", function (e) {
+			e.stopPropagation();
+		});
+		$(".inline-jump-btn").off("click").on("click", function (e) {
+			e.preventDefault();
+			const link = $(this);
+			const id = link.attr("data-id");
+			const href = link.attr("href");
+			$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function () {
+				window.location.href = href;
+			}, "JSON").fail(function () {
+				window.location.href = href;
+			});
 		});
 	});
 	function logout() {

@@ -398,6 +398,42 @@ async fn get_unread_message_count<const I: u8>(
     Ok(unread_count)
 }
 
+async fn get_recent_messages_for_user<const I: u8>(
+    user_id: i32,
+    limit: u64,
+    db: &DatabaseConnection,
+) -> Result<Vec<JsonValue>, UniformError<I>> {
+    let sql = r#"SELECT
+    message_tb.id,
+    message_tb.article_id,
+    message_tb.comment_id,
+    message_tb.is_read,
+    message_tb.create_time,
+    user_tb.name AS from_user_name,
+    article_tb.title AS article_title
+FROM
+    message_tb
+    LEFT JOIN user_tb ON user_tb.id = message_tb.from_user_id
+    LEFT JOIN article_tb ON article_tb.id = message_tb.article_id
+WHERE
+    message_tb.to_user_id = ?
+ORDER BY
+    message_tb.is_read ASC,
+    message_tb.create_time DESC
+LIMIT ?"#;
+    let sql_statement = Statement::from_sql_and_values(
+        DatabaseBackend::MySql,
+        sql,
+        [Value::Int(Some(user_id)), Value::BigUnsigned(Some(limit))],
+    );
+    let messages = MessageTb::find()
+        .from_raw_sql(sql_statement)
+        .into_json()
+        .all(db)
+        .await?;
+    Ok(messages)
+}
+
 async fn create_mention_notifications<const I: u8>(
     from_user_id: i32,
     article_id: i32,
@@ -497,6 +533,19 @@ pub async fn home(
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
+    let recent_messages = match depot.jwt_auth_state() {
+        JwtAuthState::Authorized => {
+            let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
+            get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(
+                data.claims.user_id.as_str().parse()?,
+                6,
+                db,
+            )
+            .await
+            .unwrap_or_default()
+        }
+        _ => vec![],
+    };
     let login_data = 'login_data: {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
@@ -541,6 +590,7 @@ pub async fn home(
     context.insert("commentCount", &10);
     context.insert("page", &(page + 1));
     context.insert("hotArticles", &hot_list);
+    context.insert("recentMessages", &recent_messages);
     let r = tera.render("home.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
@@ -1003,7 +1053,18 @@ pub async fn read_article(
                         .to_result()?
                 {
                     let comments = get_comments_from_article_id(article_id, db).await?;
-                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
+                    let unread_count =
+                        get_unread_message_count::<RESPONSE_TEXT_FOR_ERROR>(currend_id as i32, db)
+                            .await
+                            .unwrap_or_default();
+                    let recent_messages = get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(
+                        currend_id as i32,
+                        6,
+                        db,
+                    )
+                    .await
+                    .unwrap_or_default();
+                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
                     let r = tera.render("article.html", &context)?;
                     res.render(Text::Html(r));
                 } else {
@@ -1014,7 +1075,18 @@ pub async fn read_article(
             } else if need_level <= person.privilege.unwrap_or(1) as u64 {
                 increase_view_count(article_id, db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id];
+                let unread_count =
+                    get_unread_message_count::<RESPONSE_TEXT_FOR_ERROR>(currend_id as i32, db)
+                        .await
+                        .unwrap_or_default();
+                let recent_messages = get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(
+                    currend_id as i32,
+                    6,
+                    db,
+                )
+                .await
+                .unwrap_or_default();
+                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>currend_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
                 let r = tera.render("article.html", &context)?;
                 res.render(Text::Html(r));
             } else {
@@ -1031,7 +1103,7 @@ pub async fn read_article(
             } else if need_level <= 1 {
                 increase_view_count(article_id, db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
+                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None,"unread_count"=>0,"recent_messages"=>Vec::<JsonValue>::new()];
                 let r = tera.render("article.html", &context)?;
                 res.render(Text::Html(r));
             } else {
@@ -1048,7 +1120,7 @@ pub async fn read_article(
             } else if need_level <= 1 {
                 increase_view_count(article_id, db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None];
+                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None,"unread_count"=>0,"recent_messages"=>Vec::<JsonValue>::new()];
                 let r = tera.render("article.html", &context)?;
                 res.render(Text::Html(r));
             } else {
