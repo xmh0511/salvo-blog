@@ -118,7 +118,7 @@
 
 .layui-layer-setwin .layui-layer-close:hover {
 	background: rgba(255, 255, 255, 0.3) !important;
-	transform: rotate(90deg) !important;
+	/*transform: rotate(90deg) !important;*/
 }
 
 .layui-layer-setwin .layui-layer-close1,
@@ -338,21 +338,21 @@
 	.layui-layer {
 		border-radius: 16px !important;
 	}
-	
+
 	.layui-layer-title {
 		padding: 15px !important;
 		font-size: 15px !important;
 	}
-	
+
 	.layui-layer-content {
 		padding: 20px !important;
 		font-size: 14px !important;
 	}
-	
+
 	.layui-layer-btn {
 		padding: 12px 15px 15px !important;
 	}
-	
+
 	.layui-layer-btn a {
 		padding: 0 20px !important;
 		height: 38px !important;
