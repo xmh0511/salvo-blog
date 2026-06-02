@@ -15,7 +15,7 @@
 .article-message-box {
 	position: relative;
 	float: right;
-	height: 64px;
+	height: var(--blog-nav-height);
 	display: flex;
 	align-items: center;
 }
