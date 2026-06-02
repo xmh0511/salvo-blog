@@ -405,12 +405,10 @@ async fn create_mention_notifications<const I: u8>(
     content: &str,
     db: &DatabaseConnection,
 ) -> Result<(), UniformError<I>> {
-    let mut mentioned_names = extract_mentioned_usernames(content);
+    let mentioned_names = extract_mentioned_usernames(content);
     if mentioned_names.is_empty() {
         return Ok(());
     }
-    mentioned_names.sort();
-    mentioned_names.dedup();
 
     let users = UserTb::find()
         .filter(user_tb::Column::Name.is_in(mentioned_names))
@@ -427,7 +425,7 @@ async fn create_mention_notifications<const I: u8>(
         message.comment_id = ActiveValue::set(Some(comment_id));
         message.is_read = ActiveValue::set(Some(0));
         message.create_time = ActiveValue::set(Some(get_current_time()));
-        let _ = message.insert(db).await?;
+        message.insert(db).await?;
     }
     Ok(())
 }
@@ -1547,7 +1545,6 @@ pub async fn mark_message_read(
         .user_id
         .parse::<i32>()?;
     let db = get_db()?;
-    let base_url = get_base_url()?;
     let model = MessageTb::find_by_id(message_id)
         .filter(message_tb::Column::ToUserId.eq(user_id))
         .one(db)
@@ -1562,6 +1559,7 @@ pub async fn mark_message_read(
         });
         res.render(Text::Json(r.to_string()));
     } else {
+        let base_url = get_base_url()?;
         let r = json!({
             "code":404,
             "msg":"消息不存在",

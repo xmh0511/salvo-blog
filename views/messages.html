@@ -54,10 +54,11 @@
 			$(".mark-read-btn").off("click").on("click", function () {
 				const id = $(this).attr("data-id");
 				const btn = $(this);
+				const item = btn.closest(".message-item");
 				$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function (r) {
 					if (r.code === 200) {
-						btn.removeClass("mark-read-btn").replaceWith('<span class="message-read-time">已读</span>');
-						btn.closest(".message-item").removeClass("message-unread");
+						item.removeClass("message-unread");
+						btn.replaceWith('<span class="message-read-time">已读</span>');
 					} else {
 						layer.msg(r.msg || "操作失败", { icon: 5 });
 					}
