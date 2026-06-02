@@ -117,20 +117,30 @@
 						</div>
 						<div class="person-box">
 							<div class="person-box-item">
-								<p class="blogerinfo-nickname">{{login.name}}</p>
-								<p class="blogerinfo-introduce"><span>等级:</span>{{login.level}}</p>
-								<a class="post-counter counter-card" href="{{baseUrl | safe}}list/1">
-									<span>帖子</span>
-									<strong>{{login.post_count}}</strong>
-								</a>
+								<div class="person-meta-list">
+									<div class="person-meta-row">
+										<span class="person-meta-label">用户名</span>
+										<span class="person-meta-value">{{login.name}}</span>
+									</div>
+									<div class="person-meta-row">
+										<span class="person-meta-label">等级</span>
+										<span class="person-meta-value">{{login.level}}</span>
+									</div>
+									<div class="person-meta-row">
+										<span class="person-meta-label">帖子数</span>
+										<a class="person-meta-value person-meta-link" href="{{baseUrl | safe}}list/1">{{login.post_count}}</a>
+									</div>
+								</div>
 							</div>
 							<div class="person-box-item person-box-actions">
-								<a href="{{baseUrl | safe}}add">
-									<button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
-								</a>
-								<button class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
-									<i class="layui-icon layui-icon-logout"></i>退出登录
-								</button>
+								<div class="person-action-row">
+									<a href="{{baseUrl | safe}}add">
+										<button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
+									</a>
+									<button class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
+										<i class="layui-icon layui-icon-logout"></i>退出登录
+									</button>
+								</div>
 								<button type="button" class="message-inline-trigger layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
 									<i class="fa fa-envelope-o"></i>
 									<span>站内信</span>
@@ -286,6 +296,7 @@
 			layer.open({
 				type: 1,
 				title: '站内信',
+				closeBtn: 1,
 				area: ['360px', 'auto'],
 				content: $('#messageDialogContent').html(),
 				success: function (layero) {

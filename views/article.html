@@ -44,7 +44,7 @@
 			<!-- QQ互联登陆 -->
 			<!-- 不落阁 -->
 			<a class="blog-logo" href="{{baseUrl | safe}}home/1">Blog</a>
-			{% if currentId is not null %}
+			{% if currentId | is_null == false %}
 			<div class="article-message-box">
 				<button type="button" class="article-message-trigger">
 					<i class="fa fa-envelope-o"></i>

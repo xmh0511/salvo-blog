@@ -194,11 +194,70 @@
 }
 /*博主信息END*/
 
+.person-box {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    text-align: left;
+}
+
+.person-box-item {
+    min-width: 0;
+}
+
+.person-meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.person-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 34px;
+}
+
+.person-meta-label {
+    width: 56px;
+    flex-shrink: 0;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.person-meta-value {
+    flex: 1;
+    min-width: 0;
+    color: #3e4a7a;
+    font-size: 15px;
+    font-weight: 600;
+    word-break: break-all;
+}
+
+.person-meta-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: #f7f8ff;
+}
+
 .person-box-actions {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    gap: 8px;
+}
+
+.person-action-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.person-action-row > a,
+.person-action-row > button {
+    flex: 1;
 }
 
 .person-box-actions .layui-btn {
@@ -212,17 +271,6 @@
 
 .person-box-actions > a .layui-btn {
     width: 100%;
-}
-
-.person-box .blogerinfo-nickname {
-    font-size: 16px;
-    margin: 4px 0;
-}
-
-.person-box .blogerinfo-introduce {
-    font-size: 13px;
-    margin: 4px 0;
-    width: auto;
 }
 
 .message-dialog-body {
