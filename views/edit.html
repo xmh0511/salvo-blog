@@ -107,7 +107,7 @@
 			layer.load(2);
 			$.post({url:`{{baseUrl | safe }}edit/{{article.id}}`,headers:{"Content-type": "application/x-www-form-urlencoded"}}, { tag, title, content, level }, function (r) {
 				if (r.code === 200) {
-					layer.msg('提交成功', { icon: 1, time: 1500 }, function () {
+					layer.msg('提交成功', { icon: 6, time: 1500 }, function () {
 						location.replace('{{baseUrl | safe }}list/1');
 					})
 				} else {
