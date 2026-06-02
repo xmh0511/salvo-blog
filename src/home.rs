@@ -1274,11 +1274,7 @@ pub async fn add_comment(
     let comment = model.insert(db).await?;
     if let Some(md_content) = comment.md_content.as_deref() {
         create_mention_notifications::<RESPONSE_JSON_FOR_ERROR>(
-            identifier,
-            article_id,
-            comment.id,
-            md_content,
-            db,
+            identifier, article_id, comment.id, md_content, db,
         )
         .await?;
     }
@@ -1587,11 +1583,8 @@ WHERE
 ORDER BY
     message_tb.is_read ASC,
     message_tb.create_time DESC"#;
-    let sql_statement = Statement::from_sql_and_values(
-        DatabaseBackend::MySql,
-        sql,
-        [Value::Int(Some(user_id))],
-    );
+    let sql_statement =
+        Statement::from_sql_and_values(DatabaseBackend::MySql, sql, [Value::Int(Some(user_id))]);
     let messages = MessageTb::find()
         .from_raw_sql(sql_statement)
         .into_json()
