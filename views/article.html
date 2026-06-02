@@ -1,300 +1,603 @@
-﻿<!DOCTYPE html>
+﻿<!doctype html>
 
 <html lang="zh">
+    <head>
+        <base href="{{baseUrl | safe}}" />
+        <meta http-equiv="Content-Type" content="text/html; Charset=utf-8" />
+        <meta http-equiv="Content-Language" content="zh-CN" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, user-scalable=no"
+        />
+        <title>文章-{{info.title}}</title>
+        <script>
+            window.baseUrl = `{{ baseUrl | safe }}`;
+        </script>
+        <link
+            rel="shortcut icon"
+            href="{{baseUrl | safe}}favicon.ico"
+            type="image/x-icon"
+        />
+        <!--Layui-->
+        <link
+            href="{{baseUrl | safe}}public/plug/layui/css/layui.css"
+            rel="stylesheet"
+        />
+        <!--font-awesome-->
+        <link
+            href="{{baseUrl | safe}}public/plug/font-awesome/css/font-awesome.min.css"
+            rel="stylesheet"
+        />
+        <!--全局样式表-->
+        <link href="{{baseUrl | safe}}public/css/global.css" rel="stylesheet" />
+        <!--Layer对话框主题-->
+        <link
+            href="{{baseUrl | safe}}public/css/layer-theme.css"
+            rel="stylesheet"
+        />
+        <!--本页样式表-->
+        <link
+            href="{{baseUrl | safe}}public/css/article.css"
+            rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            href="{{baseUrl | safe}}public/markdown/css/editormd.min.css"
+        />
+        <link
+            rel="stylesheet"
+            href="{{baseUrl | safe}}public/markdown/css/editormd.preview.min.css"
+        />
+        <link
+            rel="stylesheet"
+            href="{{baseUrl | safe}}public/katex/katex.min.css"
+        />
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/editormd.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/katex/katex.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/lib/marked.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/lib/prettify.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/lib/flowchart.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/lib/jquery.flowchart.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/lib/underscore.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/lib/raphael.min.js"
+        ></script>
+        <script
+            type="text/javascript"
+            src="{{baseUrl | safe}}public/markdown/lib/sequence-diagram.min.js"
+        ></script>
+    </head>
 
-<head>
-	<base href="{{baseUrl | safe}}" />
-	<meta http-equiv="Content-Type" content="text/html; Charset=utf-8">
-	<meta http-equiv="Content-Language" content="zh-CN">
-	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-	<title>文章-{{info.title}}</title>
-	<script>
-		window.baseUrl = `{{ baseUrl | safe }}`;
-	</script>
-	<link rel="shortcut icon" href="{{baseUrl | safe}}favicon.ico" type="image/x-icon">
-	<!--Layui-->
-	<link href="{{baseUrl | safe}}public/plug/layui/css/layui.css" rel="stylesheet" />
-	<!--font-awesome-->
-	<link href="{{baseUrl | safe}}public/plug/font-awesome/css/font-awesome.min.css" rel="stylesheet" />
-	<!--全局样式表-->
-	<link href="{{baseUrl | safe}}public/css/global.css" rel="stylesheet" />
-	<!--Layer对话框主题-->
-	<link href="{{baseUrl | safe}}public/css/layer-theme.css" rel="stylesheet" />
-	<!--本页样式表-->
-	<link href="{{baseUrl | safe}}public/css/article.css" rel="stylesheet" />
-	<link rel="stylesheet" href="{{baseUrl | safe}}public/markdown/css/editormd.min.css">
-	<link rel="stylesheet" href="{{baseUrl | safe}}public/markdown/css/editormd.preview.min.css">
-	<link rel="stylesheet" href="{{baseUrl | safe}}public/katex/katex.min.css">
-	<script type="text/javascript" src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/editormd.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/katex/katex.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/marked.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/prettify.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/flowchart.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/jquery.flowchart.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/underscore.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/raphael.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/lib/sequence-diagram.min.js"></script>
-</head>
+    <body>
+        <!-- 导航 -->
+        <nav class="blog-nav layui-header">
+            <div class="blog-container">
+                <!-- QQ互联登陆 -->
+                <!-- 不落阁 -->
+                <a class="blog-logo" href="{{baseUrl | safe}}home/1">Blog</a>
+                {% if currentId | is_null == false %}
+                <div class="article-message-box">
+                    <button type="button" class="article-message-trigger">
+                        <i class="fa fa-envelope-o"></i>
+                        {% if unread_count > 0 %}
+                        <em class="article-message-badge">{{unread_count}}</em>
+                        {% endif %}
+                    </button>
+                    <div class="article-message-panel layui-hide">
+                        <div class="article-message-header">站内信</div>
+                        {% if recent_messages | length == 0 %}
+                        <div class="article-message-empty">暂无消息</div>
+                        {% endif %} {% for msg in recent_messages %}
+                        <a
+                            class="article-message-item {% if msg.is_read == 0 %}article-message-item-unread{% endif %} article-inline-jump"
+                            data-id="{{msg.id}}"
+                            href="{{baseUrl | safe}}article/{{msg.article_id}}#comment-{{msg.comment_id}}"
+                        >
+                            <div class="article-message-from">
+                                @{{msg.from_user_name |
+                                default(value="未知用户")}}
+                            </div>
+                            <div class="article-message-text">
+                                在《{{msg.article_title |
+                                default(value="文章已删除")}}》提到了你
+                            </div>
+                        </a>
+                        {% endfor %}
+                        <a
+                            class="article-message-more"
+                            href="{{baseUrl | safe}}messages"
+                            >查看完整历史</a
+                        >
+                    </div>
+                </div>
+                {% endif %}
+                <!-- 导航菜单 -->
 
-<body>
-	<!-- 导航 -->
-	<nav class="blog-nav layui-header">
-		<div class="blog-container">
-			<!-- QQ互联登陆 -->
-			<!-- 不落阁 -->
-			<a class="blog-logo" href="{{baseUrl | safe}}home/1">Blog</a>
-			<!-- 导航菜单 -->
+                <!-- 手机和平板的导航开关 -->
+            </div>
+        </nav>
+        <!-- 主体（一般只改变这里的内容） -->
+        <div class="blog-body">
+            <div class="blog-container">
+                <blockquote
+                    class="layui-elem-quote sitemap layui-breadcrumb shadow"
+                >
+                    <a href="{{baseUrl | safe}}home/1" title="网站首页"
+                        >网站首页</a
+                    >
+                    <a><cite>{{info.title}}</cite></a>
+                </blockquote>
+                <div class="blog-main">
+                    <div class="">
+                        <div class="shadow article-detail-container">
+                            <div class="article-detail-header">
+                                <h1 class="article-detail-title">
+                                    {{info.title}}
+                                </h1>
+                            </div>
+                            <div class="article-subtitle">
+                                <span
+                                    ><i class="layui-icon layui-icon-file-b"></i
+                                    >{{info.create_time | date(format="%Y-%m-%d
+                                    %H:%M")}}</span
+                                >
+                                <span
+                                    ><i class="layui-icon layui-icon-edit"></i
+                                    >{{info.update_time | date(format="%Y-%m-%d
+                                    %H:%M")}}</span
+                                >
+                                <span
+                                    ><i
+                                        class="layui-icon layui-icon-username"
+                                    ></i
+                                    ><span class="article-meta-label"
+                                        >作者:</span
+                                    >
+                                    <span class="article-meta-value"
+                                        >{{info.userName}}</span
+                                    ></span
+                                >
+                            </div>
+                            <div
+                                id="article-content"
+                                class="article-detail-content"
+                            ></div>
+                        </div>
+                    </div>
+                    <div class="clear"></div>
+                    <div class="comment-list">
+                        {% for item in comments %}
+                        <div class="comment-item" id="comment-{{item.id}}">
+                            <div class="avator">
+                                {% if item.avatar == "" or item.avatar | is_null
+                                %}
+                                <div>
+                                    <img
+                                        src="{{baseUrl | safe}}public/images/default.jpg"
+                                    />
+                                </div>
+                                {% else %}
+                                <div>
+                                    <img
+                                        src="{{baseUrl | safe}}{{item.avatar | safe }}"
+                                    />
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <div class="avator-item">
+                                        <span
+                                            ><i
+                                                class="layui-icon layui-icon-username"
+                                            ></i
+                                            >用户名:</span
+                                        >
+                                        <span>{{item.userName}}</span>
+                                    </div>
+                                    <div class="avator-item">
+                                        <span
+                                            ><i
+                                                class="layui-icon layui-icon-diamond"
+                                            ></i
+                                            >等级:</span
+                                        >
+                                        <span>{{item.level}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="comment-content">
+                                <div class="comment-inner-content">
+                                    <div
+                                        class="comment-container markdown-body editormd-html-preview"
+                                    >
+                                        <div>{{ item.comment | safe}}</div>
+                                    </div>
+                                    <div class="comment-bar">
+                                        {% if item.user_id == currentId %}
+                                        <div class="comment-bar-item">
+                                            <span
+                                                class="deleteComment"
+                                                data-id="{{item.id}}"
+                                                ><i
+                                                    class="layui-icon layui-icon-delete"
+                                                ></i
+                                                >删除</span
+                                            >
+                                        </div>
+                                        {% endif %} {% if item.user_id ==
+                                        currentId %}
+                                        <div class="comment-bar-item">
+                                            <span
+                                                class="editComment"
+                                                data-id="{{item.id}}"
+                                                ><i
+                                                    class="layui-icon layui-icon-edit"
+                                                ></i
+                                                >编辑</span
+                                            >
+                                        </div>
+                                        {% endif %}
+                                        <div class="comment-time-in-bar">
+                                            <div>
+                                                <span>创建时间:</span>
+                                                <span
+                                                    >{{item.create_time |
+                                                    date(format="%Y-%m-%d
+                                                    %H:%M") }}</span
+                                                >
+                                            </div>
+                                            <div
+                                                class="comment-time-in-bar-item"
+                                            >
+                                                <span>修改时间:</span>
+                                                <span
+                                                    >{{item.update_time |
+                                                    date(format="%Y-%m-%d
+                                                    %H:%M") }}</span
+                                                >
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="commentPoster">
+                        <div id="comment"></div>
+                        <div class="post-button">
+                            <button
+                                class="layui-btn postButton layui-btn-normal"
+                            >
+                                提交
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="display: none">
+                <textarea id="article_data">{{info.content | safe}}</textarea>
+            </div>
+        </div>
+        <!-- 底部 -->
+        {% include "footer.html" %}
 
-			<!-- 手机和平板的导航开关 -->
-		</div>
-	</nav>
-	<!-- 主体（一般只改变这里的内容） -->
-	<div class="blog-body">
-		<div class="blog-container">
-			<blockquote class="layui-elem-quote sitemap layui-breadcrumb shadow">
-				<a href="{{baseUrl | safe}}home/1" title="网站首页">网站首页</a>
-				<a><cite>{{info.title}}</cite></a>
-			</blockquote>
-			<div class="blog-main">
-				<div class="">
-					<div class="shadow article-detail-container">
-						<div class="article-detail-header">
-							<h1 class="article-detail-title">{{info.title}}</h1>
-						</div>
-						<div class="article-subtitle">
-							<span><i
-									class="layui-icon layui-icon-file-b"></i>{{info.create_time | date(format="%Y-%m-%d %H:%M")}}</span>
-							<span><i
-									class="layui-icon layui-icon-edit"></i>{{info.update_time | date(format="%Y-%m-%d %H:%M")}}</span>
-							<span><i class="layui-icon layui-icon-username"></i><span class="article-meta-label">作者:</span> <span class="article-meta-value">{{info.userName}}</span></span>
-						</div>
-						<div id="article-content" class="article-detail-content"></div>
-					</div>
-
-				</div>
-				<div class="clear"></div>
-				<div class="comment-list">
-					{% for item in comments %}
-					<div class="comment-item">
-						<div class="avator">
-							{% if item.avatar == "" or item.avatar | is_null %}
-							<div><img src="{{baseUrl | safe}}public/images/default.jpg" /></div>
-							{% else %}
-							<div><img src="{{baseUrl | safe}}{{item.avatar | safe }}" /></div>
-							{% endif %}
-							<div>
-								<div class="avator-item">
-									<span><i class="layui-icon layui-icon-username"></i>用户名:</span>
-									<span>{{item.userName}}</span>
-								</div>
-								<div class="avator-item">
-									<span><i class="layui-icon layui-icon-diamond"></i>等级:</span>
-									<span>{{item.level}}</span>
-								</div>
-							</div>
-						</div>
-						<div class="comment-content">
-							<div class="comment-inner-content">
-								<div class="comment-container markdown-body editormd-html-preview">
-									<div>{{ item.comment | safe}}</div>
-								</div>
-								<div class="comment-bar">
-									{% if item.user_id == currentId  %}
-									<div class="comment-bar-item">
-										<span class="deleteComment" data-id="{{item.id}}"><i
-												class="layui-icon layui-icon-delete"></i>删除</span>
-									</div>
-									{% endif %}
-									{% if item.user_id == currentId %}
-									<div class="comment-bar-item">
-										<span class="editComment" data-id="{{item.id}}"><i
-												class="layui-icon layui-icon-edit"></i>编辑</span>
-									</div>
-									{% endif %}
-									<div class="comment-time-in-bar">
-										<div>
-											<span>创建时间:</span>
-											<span>{{item.create_time | date(format="%Y-%m-%d %H:%M") }}</span>
-										</div>
-										<div class="comment-time-in-bar-item">
-											<span>修改时间:</span>
-											<span>{{item.update_time | date(format="%Y-%m-%d %H:%M") }}</span>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-					{% endfor %}
-				</div>
-				<div class="commentPoster">
-					<div id="comment"></div>
-					<div class="post-button">
-						<button class="layui-btn postButton layui-btn-normal">提交</button>
-					</div>
-				</div>
-			</div>
-		</div>
-		<div style="display:none;">
-			<textarea id="article_data" >{{info.content | safe}}</textarea>
-		</div>
-	</div>
-	<!-- 底部 -->
-	{% include "footer.html" %}
-
-	<!--遮罩-->
-	<div class="blog-mask animated layui-hide"></div>
-	<!-- layui.js -->
-	<script src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
-	<!-- 全局脚本 -->
-	<script src="{{baseUrl | safe}}public/js/global.js"></script>
-</body>
-<style>
-
-</style>
-<script type="text/javascript" src="{{baseUrl | safe}}public/resource.js"></script>
-<script>
-	editormd.emoji = {
-		ext: ".png",
-		path: "{{baseUrl | safe}}public/emojis/"
-	};
-	// Pre-process the markdown to protect math expressions ($$...$$) from
-	// marked.js GFM emphasis processing, which consumes underscores (_) inside
-	// math formulas and passes HTML markup (<em> tags) to KaTeX, breaking rendering.
-	var mathTexts = [];
-	var rawMarkdown = $("#article_data").text();
-	var processedMarkdown = rawMarkdown.replace(/\$\$([\s\S]*?)\$\$/g, function(match, content) {
-		var idx = mathTexts.length;
-		mathTexts.push(content);
-		return '$$MATHPLACEHOLDER' + idx + 'X$$';
-	});
-	testEditormdView = editormd.markdownToHTML("article-content", {
-		markdown: processedMarkdown,
-		markdownSourceCode : true, // 是否保留 Markdown 源码，即是否删除保存源码的 Textarea 标签
-		htmlDecode: "style,script,iframe",  // you can filter tags decode
-		//toc             : false,
-		//tocContainer    : "#custom-toc-container", // 自定义 ToC 容器层
-		//gfm             : false,
-		//tocDropdown     : true,
-		tocm: false,    // Using [TOCM]
-		emoji: true,
-		taskList: true,
-		tex: false,  // Disable built-in KaTeX; we render math manually below
-		flowChart: true,  // 默认不解析
-		sequenceDiagram: true,  // 默认不解析
-		htmlDecode : true,
-	});
-	// After markdown rendering, apply KaTeX using the original (unprocessed) math content.
-	// KaTeX is pre-loaded via <script> tag above, so this can run synchronously.
-	if (mathTexts.length > 0) {
-		$("#article-content .editormd-tex").each(function() {
-			var el = $(this);
-			var text = el.text().trim();
-			var match = text.match(/^MATHPLACEHOLDER(\d+)X$/);
-			if (match) {
-				var mathContent = mathTexts[parseInt(match[1], 10)];
-				if (mathContent !== undefined) {
-					try {
-						katex.render(mathContent, el[0]);
-						el.find(".katex").css("font-size", "1.6em"); // match editormd's default katex font size
-					} catch(e) {
-						console.error("KaTeX rendering failed:", e);
-						el.text(mathContent);
-					}
-				}
-			}
-		});
-	}
-	var editor = editormd("comment", {
+        <!--遮罩-->
+        <div class="blog-mask animated layui-hide"></div>
+        <!-- layui.js -->
+        <script src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
+        <!-- 全局脚本 -->
+        <script src="{{baseUrl | safe}}public/js/global.js"></script>
+    </body>
+    <style></style>
+    <script
+        type="text/javascript"
+        src="{{baseUrl | safe}}public/resource.js"
+    ></script>
+    <script>
+        editormd.emoji = {
+            ext: ".png",
+            path: "{{baseUrl | safe}}public/emojis/",
+        };
+        // Pre-process the markdown to protect math expressions ($$...$$) from
+        // marked.js GFM emphasis processing, which consumes underscores (_) inside
+        // math formulas and passes HTML markup (<em> tags) to KaTeX, breaking rendering.
+        var mathTexts = [];
+        var rawMarkdown = $("#article_data").text();
+        var processedMarkdown = rawMarkdown.replace(
+            /\$\$([\s\S]*?)\$\$/g,
+            function (match, content) {
+                var idx = mathTexts.length;
+                mathTexts.push(content);
+                return "$$MATHPLACEHOLDER" + idx + "X$$";
+            },
+        );
+        testEditormdView = editormd.markdownToHTML("article-content", {
+            markdown: processedMarkdown,
+            markdownSourceCode: true, // 是否保留 Markdown 源码，即是否删除保存源码的 Textarea 标签
+            htmlDecode: "style,script,iframe", // you can filter tags decode
+            //toc             : false,
+            //tocContainer    : "#custom-toc-container", // 自定义 ToC 容器层
+            //gfm             : false,
+            //tocDropdown     : true,
+            tocm: false, // Using [TOCM]
+            emoji: true,
+            taskList: true,
+            tex: false, // Disable built-in KaTeX; we render math manually below
+            flowChart: true, // 默认不解析
+            sequenceDiagram: true, // 默认不解析
+            htmlDecode: true,
+        });
+        // After markdown rendering, apply KaTeX using the original (unprocessed) math content.
+        // KaTeX is pre-loaded via <script> tag above, so this can run synchronously.
+        if (mathTexts.length > 0) {
+            $("#article-content .editormd-tex").each(function () {
+                var el = $(this);
+                var text = el.text().trim();
+                var match = text.match(/^MATHPLACEHOLDER(\d+)X$/);
+                if (match) {
+                    var mathContent = mathTexts[parseInt(match[1], 10)];
+                    if (mathContent !== undefined) {
+                        try {
+                            katex.render(mathContent, el[0]);
+                            el.find(".katex").css("font-size", "1.6em"); // match editormd's default katex font size
+                        } catch (e) {
+                            console.error("KaTeX rendering failed:", e);
+                            el.text(mathContent);
+                        }
+                    }
+                }
+            });
+        }
+        var editor = editormd("comment", {
             width: "100%",
             height: "100%",
-			imageUpload:true,
-			imageUploadURL:"{{baseUrl | safe}}upload",
-			saveHTMLToTextarea:true,
-			tocm: false,    // Using [TOCM]
-			emoji: true,
-			taskList: true,
-			tex: true,  // 默认不解析
-			flowChart: true,  // 默认不解析
-			sequenceDiagram: true,  // 默认不解析
-			htmlDecode : true,
-			placeholder:'发表评论',
+            imageUpload: true,
+            imageUploadURL: "{{baseUrl | safe}}upload",
+            saveHTMLToTextarea: true,
+            tocm: false, // Using [TOCM]
+            emoji: true,
+            taskList: true,
+            tex: true, // 默认不解析
+            flowChart: true, // 默认不解析
+            sequenceDiagram: true, // 默认不解析
+            htmlDecode: true,
+            atLink:false,
+            placeholder: "发表评论",
             // markdown: "xxxx",     // dynamic set Markdown text
-            path : "{{baseUrl | safe }}public/markdown/lib/",  // Autoload modules mode, codemirror, marked... dependents libs path
-    });
-	layui.use('laypage', function () {
-		var laypage = layui.laypage;
-		var layer = layui.layer;
+            path: "{{baseUrl | safe }}public/markdown/lib/", // Autoload modules mode, codemirror, marked... dependents libs path
+        });
+        layui.use("laypage", function () {
+            var laypage = layui.laypage;
+            var layer = layui.layer;
+            var messagePollTimer = null;
 
-		$(".postButton").off("click").on("click", function () {
-			var that = this;
-			let id = `{{info.id}}`
-			let comment = editor.getHTML();
-			if(comment.length===0){
-				layer.msg("请输入有效评论", { icon: 5 });
-				return;
-			}
-			let md_content = editor.getMarkdown();
-			layer.confirm('确定提交吗?', {
-				btn: ['确定', '取消'] //可以无限个按钮
-			}, function (index, layero) {
-				layer.load(2);
-				$.post({url:`{{baseUrl | safe }}comment/${id}`,headers:{"Content-type":"application/x-www-form-urlencoded"}}, { comment,md_content }, function (r) {
-					if (r.code === 200) {
-						layer.msg('提交成功', { icon: 1, time: 1500 }, function () {
-							window.location.reload();
-						})
-					} else {
-						layer.closeAll('loading');
-						layer.msg(r.msg, { icon: 5 });
-					}
-				})
-			}, function (index) {
-				//按钮【按钮二】的回调
-			});
-		})
+            function escapeHtml(str) {
+                return String(str || "").replace(/[&<>"']/g, function (s) {
+                    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[s];
+                });
+            }
 
+            function updateArticleMessageBadge(unreadCount) {
+                var trigger = $(".article-message-trigger");
+                trigger.find(".article-message-badge").remove();
+                if (Number(unreadCount) > 0) {
+                    trigger.append(`<em class="article-message-badge">${unreadCount}</em>`);
+                }
+            }
 
-		$(".deleteComment").off("click").on("click", function () {
-			var that = this;
-			let id = $(this).attr("data-id");
-			layer.confirm('确定提交吗?', {
-				btn: ['确定', '取消'] //可以无限个按钮
-			}, function (index, layero) {
-				layer.load(2);
-				$.post(`{{baseUrl | safe }}delcomment/${id}`, { id }, function (r) {
-					if (r.code === 200) {
-						layer.msg('提交成功', { icon: 1, time: 1500 }, function () {
-							window.location.reload();
-						})
-					} else {
-						layer.closeAll('loading');
-						layer.msg(r.msg, { icon: 5 });
-					}
-				})
-			}, function (index) {
-				//按钮【按钮二】的回调
-			});
-		})
+            function renderArticleMessagePanel(messages) {
+                var items = messages || [];
+                var html = '<div class="article-message-header">站内信</div>';
+                if (items.length === 0) {
+                    html += '<div class="article-message-empty">暂无消息</div>';
+                } else {
+                    items.forEach(function (msg) {
+                        var unreadClass = Number(msg.is_read) === 0 ? " article-message-item-unread" : "";
+                        var fromUser = escapeHtml(msg.from_user_name || "未知用户");
+                        var articleTitle = escapeHtml(msg.article_title || "文章已删除");
+                        html += `<a class="article-message-item${unreadClass} article-inline-jump" data-id="${msg.id}" href="{{baseUrl | safe}}article/${msg.article_id}#comment-${msg.comment_id}">
+                            <div class="article-message-from">@${fromUser}</div>
+                            <div class="article-message-text">在《${articleTitle}》提到了你</div>
+                        </a>`;
+                    });
+                }
+                html += '<a class="article-message-more" href="{{baseUrl | safe}}messages">查看完整历史</a>';
+                $(".article-message-panel").html(html);
+            }
 
-		$(".editComment").off("click").on("click", function () {
-			const id = $(this).attr("data-id");
-			layer.open({
-				type: 2,
-				area: ['800px', '460px'],
-				content: [`{{baseUrl | safe }}commentedit/${id}`, 'no'], //这里content是一个URL，如果你不想让iframe出现滚动条，你还可以content: ['http://sentsin.com', 'no']
-				success: function (layero, index) {
-					var iframeWin = window[layero.find('iframe')[0]['name']];
-					console.log(iframeWin);
-				}
-			});
-		});
-	})
+            function bindArticleInlineJump() {
+                $(".article-inline-jump")
+                    .off("click")
+                    .on("click", function (e) {
+                        e.preventDefault();
+                        const link = $(this);
+                        const href = link.attr("href");
+                        const id = link.attr("data-id");
+                        $.post(
+                            `{{baseUrl | safe}}message/read/${id}`,
+                            {},
+                            function (r) {
+                                if (r.code === 200) {
+                                    window.location.href = href;
+                                } else {
+                                    layer.msg(r.msg || "标记已读失败", { icon: 5 });
+                                }
+                            },
+                            "JSON",
+                        ).fail(function () {
+                            layer.msg("网络错误，未能标记已读", { icon: 5 });
+                        });
+                    });
+            }
 
-	window.requestRefresh = function () {
-		window.location.reload();
-	}
-</script>
+            function refreshMessageSummary() {
+                return $.get(`{{baseUrl | safe}}message/summary`, function (r) {
+                    if (r.code === 200) {
+                        updateArticleMessageBadge(r.unread_count || 0);
+                        renderArticleMessagePanel(r.recent_messages || []);
+                        bindArticleInlineJump();
+                    }
+                }, "JSON");
+            }
+            $(".article-message-trigger")
+                .off("click")
+                .on("click", function (e) {
+                    e.stopPropagation();
+                    $(".article-message-panel").toggleClass("layui-hide");
+                });
+            $(".article-message-panel")
+                .off("click")
+                .on("click", function (e) {
+                    e.stopPropagation();
+                });
+            $(document)
+                .off("click.articleMessage")
+                .on("click.articleMessage", function () {
+                    $(".article-message-panel").addClass("layui-hide");
+                });
+            bindArticleInlineJump();
 
+            if ($(".article-message-trigger").length > 0) {
+                refreshMessageSummary();
+                messagePollTimer = setInterval(refreshMessageSummary, 10000);
+                $(window).on("beforeunload", function () {
+                    if (messagePollTimer) {
+                        clearInterval(messagePollTimer);
+                    }
+                });
+            }
+
+            $(".postButton")
+                .off("click")
+                .on("click", function () {
+                    var that = this;
+                    let id = `{{info.id}}`;
+                    let comment = editor.getHTML();
+                    if (comment.length === 0) {
+                        layer.msg("请输入有效评论", { icon: 5 });
+                        return;
+                    }
+                    let md_content = editor.getMarkdown();
+                    layer.confirm(
+                        "确定提交吗?",
+                        {
+                            btn: ["确定", "取消"], //可以无限个按钮
+                        },
+                        function (index, layero) {
+                            layer.load(2);
+                            $.post(
+                                {
+                                    url: `{{baseUrl | safe }}comment/${id}`,
+                                    headers: {
+                                        "Content-type":
+                                            "application/x-www-form-urlencoded",
+                                    },
+                                },
+                                { comment, md_content },
+                                function (r) {
+                                    if (r.code === 200) {
+                                        layer.msg(
+                                            "提交成功",
+                                            { icon: 6, time: 1500 },
+                                            function () {
+                                                window.location.reload();
+                                            },
+                                        );
+                                    } else {
+                                        layer.closeAll("loading");
+                                        layer.msg(r.msg, { icon: 5 });
+                                    }
+                                },
+                            );
+                        },
+                        function (index) {
+                            //按钮【按钮二】的回调
+                        },
+                    );
+                });
+
+            $(".deleteComment")
+                .off("click")
+                .on("click", function () {
+                    var that = this;
+                    let id = $(this).attr("data-id");
+                    layer.confirm(
+                        "确定提交吗?",
+                        {
+                            btn: ["确定", "取消"], //可以无限个按钮
+                        },
+                        function (index, layero) {
+                            layer.load(2);
+                            $.post(
+                                `{{baseUrl | safe }}delcomment/${id}`,
+                                { id },
+                                function (r) {
+                                    if (r.code === 200) {
+                                        layer.msg(
+                                            "提交成功",
+                                            { icon: 6, time: 1500 },
+                                            function () {
+                                                window.location.reload();
+                                            },
+                                        );
+                                    } else {
+                                        layer.closeAll("loading");
+                                        layer.msg(r.msg, { icon: 5 });
+                                    }
+                                },
+                            );
+                        },
+                        function (index) {
+                            //按钮【按钮二】的回调
+                        },
+                    );
+                });
+
+            $(".editComment")
+                .off("click")
+                .on("click", function () {
+                    const id = $(this).attr("data-id");
+                    layer.open({
+                        type: 2,
+                        area: ["800px", "460px"],
+                        content: [`{{baseUrl | safe }}commentedit/${id}`, "no"], //这里content是一个URL，如果你不想让iframe出现滚动条，你还可以content: ['http://sentsin.com', 'no']
+                        success: function (layero, index) {
+                            var iframeWin =
+                                window[layero.find("iframe")[0]["name"]];
+                            console.log(iframeWin);
+                        },
+                    });
+                });
+        });
+
+        window.requestRefresh = function () {
+            window.location.reload();
+        };
+    </script>
 </html>

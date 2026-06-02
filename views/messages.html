@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+	<base href="{{baseUrl | safe}}" />
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<title>站内信</title>
+	<link rel="shortcut icon" href="{{baseUrl | safe}}favicon.ico" type="image/x-icon">
+	<link href="{{baseUrl | safe}}public/plug/layui/css/layui.css" rel="stylesheet" />
+	<link href="{{baseUrl | safe}}public/css/global.css" rel="stylesheet" />
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
+</head>
+
+<body>
+	<div class="blog-body">
+		<div class="blog-container message-page">
+			<div class="layui-card">
+				<div class="layui-card-header">
+					<a href="{{baseUrl | safe}}home/1"><i class="layui-icon layui-icon-home"></i> 返回首页</a>
+				</div>
+				<div class="layui-card-body">
+					{% if messages | length == 0 %}
+					<div class="layui-text">暂无消息</div>
+					{% endif %}
+					{% for item in messages %}
+					<div class="message-item {% if item.is_read == 0 %}message-unread{% endif %}">
+						<div class="message-title">
+							<span class="from-user">@{{item.from_user_name | default(value="未知用户")}}</span>
+							<span>在《{{item.article_title | default(value="文章已删除")}}》的评论中提到了你</span>
+						</div>
+						<div class="message-meta">
+							<span>{{item.create_time | date(format="%Y-%m-%d %H:%M")}}</span>
+							<a class="layui-btn layui-btn-xs layui-btn-primary jump-btn" data-id="{{item.id}}"
+								href="{{baseUrl | safe}}article/{{item.article_id}}#comment-{{item.comment_id}}">跳转查看</a>
+							{% if item.is_read == 0 %}
+							<button class="layui-btn layui-btn-xs mark-read-btn" data-id="{{item.id}}">标记已读</button>
+							{% else %}
+							<span class="message-read-time">已读</span>
+							{% endif %}
+						</div>
+					</div>
+					{% endfor %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	{% include "footer.html" %}
+	<script>
+		layui.use(['layer'], function () {
+			var layer = layui.layer;
+			function markMessageRead(id, done) {
+				$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function (r) {
+					if (r.code === 200) {
+						done && done();
+					} else {
+						layer.msg(r.msg || "操作失败", { icon: 5 });
+					}
+				}, "JSON").fail(function () {
+					layer.msg("操作失败", { icon: 5 });
+				});
+			}
+			$(".mark-read-btn").off("click").on("click", function () {
+				const id = $(this).attr("data-id");
+				const btn = $(this);
+				const item = btn.closest(".message-item");
+				markMessageRead(id, function () {
+					item.removeClass("message-unread");
+					btn.replaceWith('<span class="message-read-time">已读</span>');
+				});
+			});
+			$(".jump-btn").off("click").on("click", function (e) {
+				e.preventDefault();
+				const btn = $(this);
+				const id = btn.attr("data-id");
+				const href = btn.attr("href");
+				const item = btn.closest(".message-item");
+				markMessageRead(id, function () {
+					item.removeClass("message-unread");
+					window.location.href = href;
+				});
+			});
+		});
+	</script>
+	<style>
+		.message-page {
+			padding: 20px 0;
+		}
+
+		.message-item {
+			padding: 12px;
+			border-bottom: 1px solid #f2f2f2;
+		}
+
+		.message-unread {
+			background: #fff7e8;
+			border-left: 3px solid #ff4d4f;
+		}
+
+		.message-title {
+			font-size: 14px;
+			margin-bottom: 8px;
+		}
+
+		.from-user {
+			color: #1E9FFF;
+			margin-right: 6px;
+		}
+
+		.message-meta {
+			display: flex;
+			gap: 10px;
+			align-items: center;
+			color: #999;
+			font-size: 12px;
+		}
+
+		.message-read-time {
+			color: #5FB878;
+		}
+	</style>
+</body>
+
+</html>
