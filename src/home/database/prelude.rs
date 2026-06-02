@@ -3,6 +3,7 @@
 pub use super::article_tb::Entity as ArticleTb;
 pub use super::comment_tb::Entity as CommentTb;
 pub use super::level_tb::Entity as LevelTb;
+pub use super::message_tb::Entity as MessageTb;
 pub use super::tag_tb::Entity as TagTb;
 pub use super::user_tb::Entity as UserTb;
 pub use super::view_tb::Entity as ViewTb;

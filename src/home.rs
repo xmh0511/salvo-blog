@@ -11,7 +11,7 @@ use serde_json::json;
 
 use url_encor::Encoder;
 
-use self::database::{article_tb, comment_tb, tag_tb, user_tb, view_tb};
+use self::database::{article_tb, comment_tb, message_tb, tag_tb, user_tb, view_tb};
 
 use sea_orm::{entity::*, query::*};
 
@@ -24,7 +24,7 @@ use chrono::prelude::*;
 use jsonwebtoken::{self, EncodingKey};
 
 use ::serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 // Static global variables for application-lifetime resources
@@ -358,16 +358,91 @@ async fn get_hot_article_list(db: &DatabaseConnection) -> Result<Vec<JsonValue>,
     Ok(r)
 }
 
+fn extract_mentioned_usernames(content: &str) -> Vec<String> {
+    let mut names = HashSet::new();
+    let chars: Vec<char> = content.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '@' {
+            let mut j = i + 1;
+            while j < chars.len() {
+                let c = chars[j];
+                let is_cjk = ('\u{4E00}'..='\u{9FFF}').contains(&c);
+                if c.is_ascii_alphanumeric() || c == '_' || is_cjk {
+                    j += 1;
+                } else {
+                    break;
+                }
+            }
+            if j > i + 1 {
+                let username: String = chars[i + 1..j].iter().collect();
+                names.insert(username);
+                i = j;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    names.into_iter().collect()
+}
+
+async fn get_unread_message_count<const I: u8>(
+    user_id: i32,
+    db: &DatabaseConnection,
+) -> Result<u64, UniformError<I>> {
+    let unread_count = MessageTb::find()
+        .filter(message_tb::Column::ToUserId.eq(user_id))
+        .filter(message_tb::Column::IsRead.eq(0))
+        .count(db)
+        .await?;
+    Ok(unread_count)
+}
+
+async fn create_mention_notifications<const I: u8>(
+    from_user_id: i32,
+    article_id: i32,
+    comment_id: i32,
+    content: &str,
+    db: &DatabaseConnection,
+) -> Result<(), UniformError<I>> {
+    let mut mentioned_names = extract_mentioned_usernames(content);
+    if mentioned_names.is_empty() {
+        return Ok(());
+    }
+    mentioned_names.sort();
+    mentioned_names.dedup();
+
+    let users = UserTb::find()
+        .filter(user_tb::Column::Name.is_in(mentioned_names))
+        .all(db)
+        .await?;
+    for user in users {
+        if user.id == from_user_id {
+            continue;
+        }
+        let mut message = message_tb::ActiveModel::new();
+        message.to_user_id = ActiveValue::set(Some(user.id));
+        message.from_user_id = ActiveValue::set(Some(from_user_id));
+        message.article_id = ActiveValue::set(Some(article_id));
+        message.comment_id = ActiveValue::set(Some(comment_id));
+        message.is_read = ActiveValue::set(Some(0));
+        message.create_time = ActiveValue::set(Some(get_current_time()));
+        let _ = message.insert(db).await?;
+    }
+    Ok(())
+}
+
 async fn get_person_right_state<const I: u8>(
     user_id: i32,
     db: &DatabaseConnection,
-) -> Result<(user_tb::Model, u64), UniformError<I>> {
+) -> Result<(user_tb::Model, u64, u64), UniformError<I>> {
     let info = UserTb::find_by_id(user_id).one(db).await?.to_result()?;
     let post_count = ArticleTb::find()
         .filter(article_tb::Column::UserId.eq(user_id))
         .count(db)
         .await?;
-    Ok((info, post_count))
+    let unread_count = get_unread_message_count::<I>(user_id, db).await?;
+    Ok((info, post_count, unread_count))
 }
 
 async fn generate_token_by_user_id<const I: u8>(
@@ -443,12 +518,14 @@ pub async fn home(
                 let username = info.0.name.unwrap_or_default();
                 let level = info.0.privilege.unwrap_or_default();
                 let post_count = info.1;
+                let unread_count = info.2;
                 json!({
                     "login":true,
                     "avatar":avatar,
                     "name":username,
                     "level":level,
-                    "post_count":post_count
+                    "post_count":post_count,
+                    "unread_count":unread_count
                 })
             }
             _ => {
@@ -609,12 +686,14 @@ ORDER BY
     let username = info.0.name.unwrap_or_default();
     let level = info.0.privilege.unwrap_or_default();
     let post_count = info.1;
+    let unread_count = info.2;
     let login_v = json!({
         "login":true,
         "avatar":avatar,
         "name":username,
         "level":level,
-        "post_count":post_count
+        "post_count":post_count,
+        "unread_count":unread_count
     });
 
     let mut context = Context::new();
@@ -1122,7 +1201,17 @@ pub async fn add_comment(
     model.update_time = now;
     model.user_id = ActiveValue::set(Some(identifier));
     let db = get_db()?;
-    let _ = model.insert(db).await?;
+    let comment = model.insert(db).await?;
+    if let Some(md_content) = comment.md_content.as_deref() {
+        create_mention_notifications::<RESPONSE_JSON_FOR_ERROR>(
+            identifier,
+            article_id,
+            comment.id,
+            md_content,
+            db,
+        )
+        .await?;
+    }
     let r = json!({
         "code":200
     });
@@ -1396,6 +1485,94 @@ pub async fn edit_profile(
 }
 
 #[handler]
+pub async fn render_message_view(
+    _req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError> {
+    let user_id = depot
+        .jwt_auth_data::<JwtClaims>()
+        .to_result()?
+        .claims
+        .user_id
+        .parse::<i32>()?;
+    let db = get_db()?;
+    let base_url = get_base_url()?;
+    let tera = get_tera()?;
+    let sql = r#"SELECT
+    message_tb.id,
+    message_tb.article_id,
+    message_tb.comment_id,
+    message_tb.is_read,
+    message_tb.create_time,
+    message_tb.read_time,
+    user_tb.name AS from_user_name,
+    article_tb.title AS article_title
+FROM
+    message_tb
+    LEFT JOIN user_tb ON user_tb.id = message_tb.from_user_id
+    LEFT JOIN article_tb ON article_tb.id = message_tb.article_id
+WHERE
+    message_tb.to_user_id = ?
+ORDER BY
+    message_tb.is_read ASC,
+    message_tb.create_time DESC"#;
+    let sql_statement = Statement::from_sql_and_values(
+        DatabaseBackend::MySql,
+        sql,
+        [Value::Int(Some(user_id))],
+    );
+    let messages = MessageTb::find()
+        .from_raw_sql(sql_statement)
+        .into_json()
+        .all(db)
+        .await?;
+    let context = construct_context!["baseUrl"=>base_url, "messages"=>messages];
+    let r = tera.render("messages.html", &context)?;
+    res.render(Text::Html(r));
+    Ok(())
+}
+
+#[handler]
+pub async fn mark_message_read(
+    req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
+    let message_id = req.param::<i32>("id").to_result()?;
+    let user_id = depot
+        .jwt_auth_data::<JwtClaims>()
+        .to_result()?
+        .claims
+        .user_id
+        .parse::<i32>()?;
+    let db = get_db()?;
+    let base_url = get_base_url()?;
+    let model = MessageTb::find_by_id(message_id)
+        .filter(message_tb::Column::ToUserId.eq(user_id))
+        .one(db)
+        .await?;
+    if let Some(model) = model {
+        let mut model = message_tb::ActiveModel::from(model);
+        model.is_read = ActiveValue::set(Some(1));
+        model.read_time = ActiveValue::set(Some(get_current_time()));
+        model.update(db).await?;
+        let r = json!({
+            "code":200
+        });
+        res.render(Text::Json(r.to_string()));
+    } else {
+        let r = json!({
+            "code":404,
+            "msg":"消息不存在",
+            "baseUrl":base_url
+        });
+        res.render(Text::Json(r.to_string()));
+    }
+    Ok(())
+}
+
+#[handler]
 pub async fn search(
     req: &mut Request,
     res: &mut Response,
@@ -1471,12 +1648,14 @@ pub async fn search(
                 let username = info.0.name.unwrap_or_default();
                 let level = info.0.privilege.unwrap_or_default();
                 let post_count = info.1;
+                let unread_count = info.2;
                 json!({
                     "login":true,
                     "avatar":avatar,
                     "name":username,
                     "level":level,
-                    "post_count":post_count
+                    "post_count":post_count,
+                    "unread_count":unread_count
                 })
             }
             _ => {

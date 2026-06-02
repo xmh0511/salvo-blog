@@ -76,7 +76,7 @@
 				<div class="clear"></div>
 				<div class="comment-list">
 					{% for item in comments %}
-					<div class="comment-item">
+					<div class="comment-item" id="comment-{{item.id}}">
 						<div class="avator">
 							{% if item.avatar == "" or item.avatar | is_null %}
 							<div><img src="{{baseUrl | safe}}public/images/default.jpg" /></div>

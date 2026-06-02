@@ -5,6 +5,7 @@ pub mod prelude;
 pub mod article_tb;
 pub mod comment_tb;
 pub mod level_tb;
+pub mod message_tb;
 pub mod tag_tb;
 pub mod user_tb;
 pub mod view_tb;

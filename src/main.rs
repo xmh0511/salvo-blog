@@ -341,6 +341,18 @@ async fn main() {
             .post(home::edit_profile),
     );
 
+    let router = router.push(
+        Router::with_path("messages")
+            .hoop(AuthorGuardByMethod)
+            .get(home::render_message_view),
+    );
+
+    let router = router.push(
+        Router::with_path("message/read/{id}")
+            .hoop(AuthorGuardByMethod)
+            .post(home::mark_message_read),
+    );
+
     let upload_router = Router::with_path("upload")
         .hoop(AuthorGuardByMethod)
         .post(home::upload);

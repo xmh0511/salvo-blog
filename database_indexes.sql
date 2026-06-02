@@ -16,6 +16,11 @@ CREATE INDEX IF NOT EXISTS idx_view_article_id ON view_tb(article_id);
 CREATE INDEX IF NOT EXISTS idx_comment_article_id ON comment_tb(article_id);
 CREATE INDEX IF NOT EXISTS idx_comment_user_id ON comment_tb(user_id);
 
+-- Indexes for message_tb
+-- Used for user inbox and unread count
+CREATE INDEX IF NOT EXISTS idx_message_to_user_id ON message_tb(to_user_id);
+CREATE INDEX IF NOT EXISTS idx_message_read_state ON message_tb(to_user_id, is_read);
+
 -- Indexes for tag_tb
 -- Used in LIKE searches
 CREATE INDEX IF NOT EXISTS idx_tag_name ON tag_tb(name(50));
@@ -29,3 +34,4 @@ CREATE INDEX IF NOT EXISTS idx_user_email ON user_tb(email(100));
 SHOW INDEX FROM article_tb;
 SHOW INDEX FROM view_tb;
 SHOW INDEX FROM comment_tb;
+SHOW INDEX FROM message_tb;

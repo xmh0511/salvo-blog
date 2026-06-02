@@ -67,6 +67,24 @@ CREATE TABLE `level_tb`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for message_tb
+-- ----------------------------
+DROP TABLE IF EXISTS `message_tb`;
+CREATE TABLE `message_tb`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `to_user_id` int(11) NULL DEFAULT NULL,
+  `from_user_id` int(11) NULL DEFAULT NULL,
+  `article_id` int(11) NULL DEFAULT NULL,
+  `comment_id` int(11) NULL DEFAULT NULL,
+  `create_time` datetime NULL DEFAULT NULL,
+  `read_time` datetime NULL DEFAULT NULL,
+  `is_read` smallint(6) NULL DEFAULT 0,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_message_to_user_id`(`to_user_id`) USING BTREE,
+  INDEX `idx_message_read_state`(`to_user_id`, `is_read`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for tag_tb
 -- ----------------------------
 DROP TABLE IF EXISTS `tag_tb`;
