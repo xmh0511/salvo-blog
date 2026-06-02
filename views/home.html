@@ -245,6 +245,50 @@
 		var upload = layui.upload;
 		var form = layui.form;
 		var layer = layui.layer;
+		var messagePollTimer = null;
+
+		function escapeHtml(str) {
+			return String(str || "").replace(/[&<>"']/g, function (s) {
+				return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[s];
+			});
+		}
+
+		function renderInlineMessages(messages) {
+			var items = messages || [];
+			var html = '<div class="message-dialog-body">';
+			if (items.length === 0) {
+				html += '<div class="message-inline-empty">暂无消息</div>';
+			} else {
+				items.forEach(function (msg) {
+					var unreadClass = Number(msg.is_read) === 0 ? ' message-inline-item-unread' : '';
+					var fromUser = escapeHtml(msg.from_user_name || "未知用户");
+					var articleTitle = escapeHtml(msg.article_title || "文章已删除");
+					html += `<a class="message-inline-item${unreadClass} inline-jump-btn" data-id="${msg.id}" href="{{baseUrl | safe}}article/${msg.article_id}#comment-${msg.comment_id}">
+						<div class="message-inline-title">@${fromUser}</div>
+						<div class="message-inline-text">在《${articleTitle}》提到了你</div>
+					</a>`;
+				});
+			}
+			html += '<a class="message-inline-more" href="{{baseUrl | safe}}messages">查看完整消息历史</a></div>';
+			return html;
+		}
+
+		function updateInlineBadge(unreadCount) {
+			var trigger = $(".message-inline-trigger");
+			trigger.find(".inline-unread-badge").remove();
+			if (Number(unreadCount) > 0) {
+				trigger.append(`<em class="inline-unread-badge">${unreadCount}</em>`);
+			}
+		}
+
+		function refreshMessageSummary() {
+			return $.get(`{{baseUrl | safe}}message/summary`, function (r) {
+				if (r.code === 200) {
+					updateInlineBadge(r.unread_count || 0);
+					$("#messageDialogContent").html(renderInlineMessages(r.recent_messages || []));
+				}
+			}, "JSON");
+		}
 
 		//执行一个laypage实例
 		laypage.render({
@@ -319,6 +363,16 @@
 				}
 			});
 		});
+
+		if ($(".message-inline-trigger").length > 0) {
+			refreshMessageSummary();
+			messagePollTimer = setInterval(refreshMessageSummary, 10000);
+			$(window).on("beforeunload", function () {
+				if (messagePollTimer) {
+					clearInterval(messagePollTimer);
+				}
+			});
+		}
 	});
 	function logout() {
 		document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path={{baseUrl | safe}}`;

@@ -353,6 +353,12 @@ async fn main() {
             .post(home::mark_message_read),
     );
 
+    let router = router.push(
+        Router::with_path("message/summary")
+            .hoop(AuthorGuardByMethod)
+            .get(home::message_summary),
+    );
+
     let upload_router = Router::with_path("upload")
         .hoop(AuthorGuardByMethod)
         .post(home::upload);

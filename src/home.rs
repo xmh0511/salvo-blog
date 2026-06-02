@@ -1644,6 +1644,30 @@ pub async fn mark_message_read(
 }
 
 #[handler]
+pub async fn message_summary(
+    _req: &mut Request,
+    res: &mut Response,
+    depot: &mut Depot,
+) -> Result<(), UniformError<RESPONSE_JSON_FOR_ERROR>> {
+    let user_id = depot
+        .jwt_auth_data::<JwtClaims>()
+        .to_result()?
+        .claims
+        .user_id
+        .parse::<i32>()?;
+    let db = get_db()?;
+    let unread_count = get_unread_message_count::<RESPONSE_JSON_FOR_ERROR>(user_id, db).await?;
+    let recent_messages = get_recent_messages_for_user::<RESPONSE_JSON_FOR_ERROR>(user_id, 8, db).await?;
+    let r = json!({
+        "code":200,
+        "unread_count": unread_count,
+        "recent_messages": recent_messages
+    });
+    res.render(Text::Json(r.to_string()));
+    Ok(())
+}
+
+#[handler]
 pub async fn search(
     req: &mut Request,
     res: &mut Response,
