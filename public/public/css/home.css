@@ -194,6 +194,42 @@
 }
 /*博主信息END*/
 
+.person-box-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.person-box-actions .layui-btn {
+    margin: 0;
+    width: 100%;
+}
+
+.person-box-actions > a {
+    width: 100%;
+}
+
+.person-box-actions > a .layui-btn {
+    width: 100%;
+}
+
+.person-box .blogerinfo-nickname {
+    font-size: 16px;
+    margin: 4px 0;
+}
+
+.person-box .blogerinfo-introduce {
+    font-size: 13px;
+    margin: 4px 0;
+    width: auto;
+}
+
+.message-dialog-body {
+    min-width: 280px;
+}
+
+
 /*友情链接*/
 .blogroll > li {
     display: inline-block;

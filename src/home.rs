@@ -743,6 +743,13 @@ ORDER BY
         "post_count":post_count,
         "unread_count":unread_count
     });
+    let recent_messages = get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(
+        user_id.parse()?,
+        6,
+        db,
+    )
+    .await
+    .unwrap_or_default();
 
     let mut context = Context::new();
     let hot_list = get_hot_article_list(db).await?;
@@ -752,6 +759,7 @@ ORDER BY
     context.insert("total", &total_count);
     context.insert("baseUrl", &base_url);
     context.insert("hotArticles", &hot_list);
+    context.insert("recentMessages", &recent_messages);
     let r = tera.render("list.html", &context)?;
     res.render(Text::Html(r));
     Ok(())

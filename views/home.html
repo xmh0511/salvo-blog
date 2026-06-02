@@ -119,53 +119,41 @@
 							<div class="person-box-item">
 								<p class="blogerinfo-nickname">{{login.name}}</p>
 								<p class="blogerinfo-introduce"><span>等级:</span>{{login.level}}</p>
+								<a class="post-counter counter-card" href="{{baseUrl | safe}}list/1">
+									<span>帖子</span>
+									<strong>{{login.post_count}}</strong>
+								</a>
 							</div>
-							<div class="person-box-item">
-								<p class="blogerinfo-nickname">
-									<a href="{{baseUrl | safe}}add">
-										<button
-											class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
-									</a>
-									<button
-										class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
-										<i class="layui-icon layui-icon-logout"></i>退出登录
-									</button>
-								</p>
-								<div class="counter-row">
-									<a class="post-counter counter-card" href="{{baseUrl | safe}}list/1">
-										<span>帖子</span>
-										<strong>{{login.post_count}}</strong>
-									</a>
-									<a class="post-counter counter-card {% if login.unread_count > 0 %}counter-card-unread{% endif %}"
-										href="{{baseUrl | safe}}messages">
-										<span>未读消息</span>
-										<strong>{{login.unread_count}}</strong>
-									</a>
-								</div>
-								<div class="message-inline-box">
-									<button type="button" class="message-inline-trigger">
-										<i class="fa fa-envelope-o"></i>
-										<span>站内信</span>
-										{% if login.unread_count > 0 %}
-										<em class="inline-unread-badge">{{login.unread_count}}</em>
-										{% endif %}
-									</button>
-									<div class="message-inline-panel layui-hide">
-										<div class="message-inline-header">最近消息</div>
-										{% if recentMessages | length == 0 %}
-										<div class="message-inline-empty">暂无消息</div>
-										{% endif %}
-										{% for msg in recentMessages %}
-										<a class="message-inline-item {% if msg.is_read == 0 %}message-inline-item-unread{% endif %} inline-jump-btn"
-											data-id="{{msg.id}}"
-											href="{{baseUrl | safe}}article/{{msg.article_id}}#comment-{{msg.comment_id}}">
-											<div class="message-inline-title">@{{msg.from_user_name | default(value="未知用户")}}</div>
-											<div class="message-inline-text">在《{{msg.article_title | default(value="文章已删除")}}》提到了你</div>
-										</a>
-										{% endfor %}
-										<a class="message-inline-more" href="{{baseUrl | safe}}messages">查看完整消息历史</a>
-									</div>
-								</div>
+							<div class="person-box-item person-box-actions">
+								<a href="{{baseUrl | safe}}add">
+									<button class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">发帖</button>
+								</a>
+								<button class="logoutButton layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
+									<i class="layui-icon layui-icon-logout"></i>退出登录
+								</button>
+								<button type="button" class="message-inline-trigger layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
+									<i class="fa fa-envelope-o"></i>
+									<span>站内信</span>
+									{% if login.unread_count > 0 %}
+									<em class="inline-unread-badge">{{login.unread_count}}</em>
+									{% endif %}
+								</button>
+							</div>
+						</div>
+						<div id="messageDialogContent" style="display:none;">
+							<div class="message-dialog-body">
+								{% if recentMessages | length == 0 %}
+								<div class="message-inline-empty">暂无消息</div>
+								{% endif %}
+								{% for msg in recentMessages %}
+								<a class="message-inline-item {% if msg.is_read == 0 %}message-inline-item-unread{% endif %} inline-jump-btn"
+									data-id="{{msg.id}}"
+									href="{{baseUrl | safe}}article/{{msg.article_id}}#comment-{{msg.comment_id}}">
+									<div class="message-inline-title">@{{msg.from_user_name | default(value="未知用户")}}</div>
+									<div class="message-inline-text">在《{{msg.article_title | default(value="文章已删除")}}》提到了你</div>
+								</a>
+								{% endfor %}
+								<a class="message-inline-more" href="{{baseUrl | safe}}messages">查看完整消息历史</a>
 							</div>
 						</div>
 						<hr />
@@ -294,29 +282,30 @@
 			}
 		});
 
-		$(".message-inline-trigger").off("click").on("click", function (e) {
-			e.stopPropagation();
-			$(".message-inline-panel").toggleClass("layui-hide");
-		});
-		$(document).off("click.inlineMessage").on("click.inlineMessage", function () {
-			$(".message-inline-panel").addClass("layui-hide");
-		});
-		$(".message-inline-panel").off("click").on("click", function (e) {
-			e.stopPropagation();
-		});
-		$(".inline-jump-btn").off("click").on("click", function (e) {
-			e.preventDefault();
-			const link = $(this);
-			const id = link.attr("data-id");
-			const href = link.attr("href");
-			$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function (r) {
-				if (r.code === 200) {
-					window.location.href = href;
-				} else {
-					layer.msg(r.msg || "标记已读失败", { icon: 5 });
+		$(".message-inline-trigger").off("click").on("click", function () {
+			layer.open({
+				type: 1,
+				title: '站内信',
+				area: ['360px', 'auto'],
+				content: $('#messageDialogContent').html(),
+				success: function (layero) {
+					layero.find(".inline-jump-btn").off("click").on("click", function (e) {
+						e.preventDefault();
+						const link = $(this);
+						const id = link.attr("data-id");
+						const href = link.attr("href");
+						$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function (r) {
+							if (r.code === 200) {
+								layer.closeAll();
+								window.location.href = href;
+							} else {
+								layer.msg(r.msg || "标记已读失败", { icon: 5 });
+							}
+						}, "JSON").fail(function () {
+							layer.msg("网络错误，未能标记已读", { icon: 5 });
+						});
+					});
 				}
-			}, "JSON").fail(function () {
-				layer.msg("网络错误，未能标记已读", { icon: 5 });
 			});
 		});
 	});
