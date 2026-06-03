@@ -187,6 +187,9 @@
                             </div>
                             <div class="comment-content">
                                 <div class="comment-inner-content">
+                                    <p class="comment-index">
+                                        <a href="{{baseUrl | safe}}article/{{info.id}}#comment-{{item.id}}">#{{loop.index}}</a>
+                                    </p>
                                     <div
                                         class="comment-container markdown-body editormd-html-preview"
                                     >

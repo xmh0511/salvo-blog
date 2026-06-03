@@ -1,7 +1,7 @@
 ﻿/*
 
-@Name：不落阁整站模板源码 
-@Author：Absolutely 
+@Name：不落阁整站模板源码
+@Author：Absolutely
 @Site：http://www.lyblogs.cn
 
 */
@@ -338,12 +338,16 @@
 	color: #34495e;
 	text-align: left !important;
 }
+.comment-index{
+    text-align: right;
+    padding-right: 10px;
+}
 
 @media (max-width: 768px) {
 	.article-detail-container {
 		padding: 30px 20px;
 	}
-	
+
 	.article-detail-title {
 		font-size: 26px;
 	}
