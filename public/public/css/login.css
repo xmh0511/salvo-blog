@@ -37,6 +37,7 @@ body::before {
     width: 90%;
     padding: 0;
     margin: 0 auto;
+    margin-top:64px;
     position: relative;
     box-sizing: border-box;
     z-index: 2;
