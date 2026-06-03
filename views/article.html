@@ -96,52 +96,7 @@
 
     <body>
         <!-- 导航 -->
-        <nav class="blog-nav layui-header">
-            <div class="blog-container">
-                <!-- QQ互联登陆 -->
-                <!-- 不落阁 -->
-                <a class="blog-logo" href="{{baseUrl | safe}}home/1">Blog</a>
-                {% if currentId | is_null == false %}
-                <div class="article-message-box">
-                    <button type="button" class="article-message-trigger">
-                        <i class="fa fa-envelope-o"></i>
-                        {% if unread_count > 0 %}
-                        <em class="article-message-badge">{{unread_count}}</em>
-                        {% endif %}
-                    </button>
-                    <div class="article-message-panel layui-hide">
-                        <div class="article-message-header">站内信</div>
-                        {% if recent_messages | length == 0 %}
-                        <div class="article-message-empty">暂无消息</div>
-                        {% endif %} {% for msg in recent_messages %}
-                        <a
-                            class="article-message-item {% if msg.is_read == 0 %}article-message-item-unread{% endif %} article-inline-jump"
-                            data-id="{{msg.id}}"
-                            href="{{baseUrl | safe}}article/{{msg.article_id}}#comment-{{msg.comment_id}}"
-                        >
-                            <div class="article-message-from">
-                                @{{msg.from_user_name |
-                                default(value="未知用户")}}
-                            </div>
-                            <div class="article-message-text">
-                                在《{{msg.article_title |
-                                default(value="文章已删除")}}》提到了你
-                            </div>
-                        </a>
-                        {% endfor %}
-                        <a
-                            class="article-message-more"
-                            href="{{baseUrl | safe}}messages"
-                            >查看完整历史</a
-                        >
-                    </div>
-                </div>
-                {% endif %}
-                <!-- 导航菜单 -->
-
-                <!-- 手机和平板的导航开关 -->
-            </div>
-        </nav>
+        {% include "navbar.html" %}
         <!-- 主体（一般只改变这里的内容） -->
         <div class="blog-body">
             <div class="blog-container">

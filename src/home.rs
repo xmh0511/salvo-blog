@@ -1072,7 +1072,15 @@ pub async fn read_article(
                     )
                     .await
                     .unwrap_or_default();
-                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>current_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
+                    let context = construct_context![
+                        "info"=>article_model,
+                        "comments"=>comments,
+                        "baseUrl"=>base_url,
+                        "currentId"=>current_id,
+                        "unread_count"=>unread_count,
+                        "recent_messages"=>recent_messages,
+                        "current_user_name"=>person.name.unwrap_or_default()
+                    ];
                     let r = tera.render("article.html", &context)?;
                     res.render(Text::Html(r));
                 } else {
@@ -1094,7 +1102,15 @@ pub async fn read_article(
                 )
                 .await
                 .unwrap_or_default();
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>current_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages];
+                let context = construct_context![
+                    "info"=>article_model,
+                    "comments"=>comments,
+                    "baseUrl"=>base_url,
+                    "currentId"=>current_id,
+                    "unread_count"=>unread_count,
+                    "recent_messages"=>recent_messages,
+                    "current_user_name"=>person.name.unwrap_or_default()
+                ];
                 let r = tera.render("article.html", &context)?;
                 res.render(Text::Html(r));
             } else {
@@ -1326,12 +1342,30 @@ pub async fn upload(
 pub async fn render_add_article_view(
     _req: &mut Request,
     res: &mut Response,
+    depot: &mut Depot,
 ) -> Result<(), UniformError> {
     let base_url = get_base_url()?;
     let db = get_db()?;
+    let user_id = depot
+        .jwt_auth_data::<JwtClaims>()
+        .to_result()?
+        .claims
+        .user_id
+        .parse::<i32>()?;
+    let person_info = get_person_right_state::<RESPONSE_TEXT_FOR_ERROR>(user_id, db).await?;
+    let recent_messages =
+        get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(user_id, 6, db).await?;
     let tags = TagTb::find().into_json().all(db).await?;
     let levels = LevelTb::find().into_json().all(db).await?;
-    let context = construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url];
+    let context = construct_context![
+        "tags"=>tags,
+        "levels"=>levels,
+        "baseUrl"=>base_url,
+        "currentId"=>user_id as u64,
+        "unread_count"=>person_info.2,
+        "recent_messages"=>recent_messages,
+        "current_user_name"=>person_info.0.name.unwrap_or_default()
+    ];
     let tera = get_tera()?;
     let r = tera.render("add.html", &context)?;
     res.render(Text::Html(r));
@@ -1410,10 +1444,22 @@ pub async fn render_article_edit_view(
         .await?
         .to_result()?;
 
+    let user_id = identifier.parse::<i32>()?;
+    let person_info = get_person_right_state::<RESPONSE_TEXT_FOR_ERROR>(user_id, db).await?;
+    let recent_messages =
+        get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(user_id, 6, db).await?;
     let tags = TagTb::find().into_json().all(db).await?;
     let levels = LevelTb::find().into_json().all(db).await?;
-    let context =
-        construct_context!["tags"=>tags,"levels"=>levels,"baseUrl"=>base_url,"article"=>model];
+    let context = construct_context![
+        "tags"=>tags,
+        "levels"=>levels,
+        "baseUrl"=>base_url,
+        "article"=>model,
+        "currentId"=>user_id as u64,
+        "unread_count"=>person_info.2,
+        "recent_messages"=>recent_messages,
+        "current_user_name"=>person_info.0.name.unwrap_or_default()
+    ];
     let tera = get_tera()?;
     let r = tera.render("edit.html", &context)?;
     res.render(Text::Html(r));

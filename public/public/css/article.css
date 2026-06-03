@@ -20,6 +20,21 @@
 	align-items: center;
 }
 
+.article-user-info {
+	float: right;
+	height: var(--blog-nav-height);
+	display: flex;
+	align-items: center;
+	color: #fff;
+	font-size: 14px;
+	margin-right: 12px;
+	gap: 6px;
+}
+
+.article-user-info i {
+	font-size: 16px;
+}
+
 .article-message-trigger {
 	width: 38px;
 	height: 38px;
