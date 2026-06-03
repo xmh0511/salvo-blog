@@ -1724,6 +1724,19 @@ pub async fn search(
 
     let hot_list = get_hot_article_list(db).await?;
     let mut context = Context::new();
+    let recent_messages = match depot.jwt_auth_state() {
+        JwtAuthState::Authorized => {
+            let data = depot.jwt_auth_data::<JwtClaims>().to_result()?;
+            get_recent_messages_for_user::<RESPONSE_TEXT_FOR_ERROR>(
+                data.claims.user_id.as_str().parse()?,
+                6,
+                db,
+            )
+            .await
+            .unwrap_or_default()
+        }
+        _ => vec![],
+    };
     let login_data = 'login_data: {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
@@ -1771,6 +1784,7 @@ pub async fn search(
     context.insert("commentCount", &10);
     context.insert("page", &(page + 1));
     context.insert("hotArticles", &hot_list);
+    context.insert("recentMessages", &recent_messages);
     let r = tera.render("search.html", &context)?;
     res.render(Text::Html(r));
     Ok(())
