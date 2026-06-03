@@ -432,6 +432,9 @@
             }
 
             function bindArticleInlineJump() {
+                const normalizePath = function (pathname) {
+                    return String(pathname || "").replace(/\/+$/, "");
+                };
                 $(".article-inline-jump")
                     .off("click")
                     .on("click", function (e) {
@@ -446,10 +449,10 @@
                                 if (r.code === 200) {
                                     const targetUrl = new URL(href, window.location.origin);
                                     const currentUrl = new URL(window.location.href);
-                                    const targetPath = targetUrl.pathname.replace(/\/+$/, "");
-                                    const currentPath = currentUrl.pathname.replace(/\/+$/, "");
+                                    const targetPath = normalizePath(targetUrl.pathname);
+                                    const currentPath = normalizePath(currentUrl.pathname);
                                     if (targetPath === currentPath) {
-                                        window.location.href = targetUrl.pathname + targetUrl.search + targetUrl.hash;
+                                        window.history.replaceState(null, "", targetUrl.toString());
                                         window.location.reload();
                                     } else {
                                         window.location.href = href;
