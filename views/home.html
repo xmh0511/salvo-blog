@@ -26,6 +26,7 @@
 	<script type="text/javascript" src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/js/login.js"></script>
+	<script type="text/javascript" src="{{baseUrl | safe}}public/js/message-poll.js"></script>
 </head>
 
 <body>
@@ -245,50 +246,6 @@
 		var upload = layui.upload;
 		var form = layui.form;
 		var layer = layui.layer;
-		var messagePollTimer = null;
-
-		function escapeHtml(str) {
-			return String(str || "").replace(/[&<>"']/g, function (s) {
-				return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[s];
-			});
-		}
-
-		function renderInlineMessages(messages) {
-			var items = messages || [];
-			var html = '<div class="message-dialog-body">';
-			if (items.length === 0) {
-				html += '<div class="message-inline-empty">暂无消息</div>';
-			} else {
-				items.forEach(function (msg) {
-					var unreadClass = Number(msg.is_read) === 0 ? ' message-inline-item-unread' : '';
-					var fromUser = escapeHtml(msg.from_user_name || "未知用户");
-					var articleTitle = escapeHtml(msg.article_title || "文章已删除");
-					html += `<a class="message-inline-item${unreadClass} inline-jump-btn" data-id="${msg.id}" href="{{baseUrl | safe}}article/${msg.article_id}#comment-${msg.comment_id}">
-						<div class="message-inline-title">@${fromUser}</div>
-						<div class="message-inline-text">在《${articleTitle}》提到了你</div>
-					</a>`;
-				});
-			}
-			html += '<a class="message-inline-more" href="{{baseUrl | safe}}messages">查看完整消息历史</a></div>';
-			return html;
-		}
-
-		function updateInlineBadge(unreadCount) {
-			var trigger = $(".message-inline-trigger");
-			trigger.find(".inline-unread-badge").remove();
-			if (Number(unreadCount) > 0) {
-				trigger.append(`<em class="inline-unread-badge">${unreadCount}</em>`);
-			}
-		}
-
-		function refreshMessageSummary() {
-			return $.get(`{{baseUrl | safe}}message/summary`, function (r) {
-				if (r.code === 200) {
-					updateInlineBadge(r.unread_count || 0);
-					$("#messageDialogContent").html(renderInlineMessages(r.recent_messages || []));
-				}
-			}, "JSON");
-		}
 
 		//执行一个laypage实例
 		laypage.render({
@@ -336,43 +293,7 @@
 			}
 		});
 
-		$(".message-inline-trigger").off("click").on("click", function () {
-			layer.open({
-				type: 1,
-				title: '站内信',
-				closeBtn: 1,
-				area: ['360px', 'auto'],
-				content: $('#messageDialogContent').html(),
-				success: function (layero) {
-					layero.find(".inline-jump-btn").off("click").on("click", function (e) {
-						e.preventDefault();
-						const link = $(this);
-						const id = link.attr("data-id");
-						const href = link.attr("href");
-						$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function (r) {
-							if (r.code === 200) {
-								layer.closeAll();
-								window.location.href = href;
-							} else {
-								layer.msg(r.msg || "标记已读失败", { icon: 5 });
-							}
-						}, "JSON").fail(function () {
-							layer.msg("网络错误，未能标记已读", { icon: 5 });
-						});
-					});
-				}
-			});
-		});
-
-		if ($(".message-inline-trigger").length > 0) {
-			refreshMessageSummary();
-			messagePollTimer = setInterval(refreshMessageSummary, 10000);
-			$(window).on("beforeunload", function () {
-				if (messagePollTimer) {
-					clearInterval(messagePollTimer);
-				}
-			});
-		}
+		MessagePoll.initInlineMessagePoll(layer);
 	});
 	function logout() {
 		document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path={{baseUrl | safe}}`;
