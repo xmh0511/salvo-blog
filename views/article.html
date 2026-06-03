@@ -277,7 +277,7 @@
                         <i class="layui-icon layui-icon-username"></i>
                         <input
                             class="layui-input"
-                            id="email"
+                            id="nickName"
                             name="nickName"
                             placeholder="用户名"
                             autocomplete="off"
@@ -325,7 +325,7 @@
                         </button>
                         <button
                             class="layui-btn layui-btn-fluid layui-btn-primary"
-                            onclick="cancelBox(event)"
+                            onclick="closeLoginDialog(event)"
                         >
                             取消
                         </button>
@@ -347,11 +347,17 @@
         src="{{baseUrl | safe}}public/resource.js"
     ></script>
     <script>
-        window.loginSuccessRedirect = window.location.href;
+        window.loginSuccessRedirect = (function () {
+            var hash = window.location.hash;
+            if (!/^#comment-\d+$/.test(hash)) {
+                hash = "";
+            }
+            return `{{baseUrl | safe}}article/{{info.id}}${hash}`;
+        })();
         function toLogin() {
             $(".login-wrapper-box").removeClass("layui-hide");
         }
-        function cancelBox(e) {
+        function closeLoginDialog(e) {
             if (e) {
                 e.preventDefault();
             }
