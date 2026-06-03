@@ -1,0 +1,18 @@
+<script type="text/javascript">
+	$(".article-message-trigger")
+		.off("click")
+		.on("click", function (e) {
+			e.stopPropagation();
+			$(".article-message-panel").toggleClass("layui-hide");
+		});
+	$(".article-message-panel")
+		.off("click")
+		.on("click", function (e) {
+			e.stopPropagation();
+		});
+	$(document)
+		.off("click.articleMessage")
+		.on("click.articleMessage", function () {
+			$(".article-message-panel").addClass("layui-hide");
+		});
+</script>
