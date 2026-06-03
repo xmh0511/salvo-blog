@@ -1,4 +1,53 @@
 <script type="text/javascript">
+	function escapeHtml(str) {
+		return String(str || "").replace(/[&<>"']/g, function (s) {
+			return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[s];
+		});
+	}
+
+	function updateArticleMessageBadge(unreadCount) {
+		var trigger = $(".article-message-trigger");
+		trigger.find(".article-message-badge").remove();
+		if (Number(unreadCount) > 0) {
+			trigger.append('<em class="article-message-badge">' + Number(unreadCount) + '</em>');
+		}
+	}
+
+	function renderArticleMessagePanel(messages) {
+		var baseUrl = window.baseUrl || "";
+		var items = messages || [];
+		var html = '<div class="article-message-header">站内信</div>';
+		if (items.length === 0) {
+			html += '<div class="article-message-empty">暂无消息</div>';
+		} else {
+			items.forEach(function (msg) {
+				var unreadClass = Number(msg.is_read) === 0 ? " article-message-item-unread" : "";
+				var fromUser = escapeHtml(msg.from_user_name || "未知用户");
+				var articleTitle = escapeHtml(msg.article_title || "文章已删除");
+				var articleId = encodeURIComponent(String(msg.article_id || ""));
+				var commentId = encodeURIComponent(String(msg.comment_id || ""));
+				html += '<a class="article-message-item' + unreadClass + ' article-inline-jump" data-id="' + encodeURIComponent(String(msg.id || "")) + '" href="' + baseUrl + 'article/' + articleId + '#comment-' + commentId + '">';
+				html += '<div class="article-message-from">@' + fromUser + '</div>';
+				html += '<div class="article-message-text">在《' + articleTitle + '》提到了你</div>';
+				html += '</a>';
+			});
+		}
+		html += '<a class="article-message-more" href="' + baseUrl + 'messages">查看完整历史</a>';
+		$(".article-message-panel").html(html);
+	}
+
+	function refreshMessageSummary() {
+		var baseUrl = window.baseUrl || "";
+		return $.get(baseUrl + "message/summary", function (r) {
+			if (r.code === 200) {
+				updateArticleMessageBadge(r.unread_count || 0);
+				renderArticleMessagePanel(r.recent_messages || []);
+			}
+		}, "JSON").fail(function () {
+			// silent fail
+		});
+	}
+
 	$(".article-message-trigger")
 		.off("click")
 		.on("click", function (e) {
@@ -15,4 +64,14 @@
 		.on("click.articleMessage", function () {
 			$(".article-message-panel").addClass("layui-hide");
 		});
+
+	if ($(".article-message-trigger").length > 0) {
+		refreshMessageSummary();
+		var messagePollTimer = setInterval(refreshMessageSummary, 10000);
+		$(window).off("beforeunload.articleMessagePoll").on("beforeunload.articleMessagePoll", function () {
+			if (messagePollTimer) {
+				clearInterval(messagePollTimer);
+			}
+		});
+	}
 </script>
