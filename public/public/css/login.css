@@ -223,8 +223,10 @@ body::before {
 .article-title{
 	width:100%;
 	margin-bottom: 0px;
-	background-color: #eee;
-	display: flex;
+	/*display: flex;*/
+}
+.article-title .article-title-item{
+    margin-bottom: 10px;
 }
 .article-title .layui-form-item{
 	margin-bottom: 0px;
