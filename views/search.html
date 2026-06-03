@@ -242,10 +242,11 @@
 		var form = layui.form;
 		var layer = layui.layer;
 		var messagePollTimer = null;
+		var baseUrl = window.baseUrl || "";
 
 		function escapeHtml(str) {
-			return String(str || "").replace(/[&<>"']/g, function (s) {
-				return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[s];
+			return String(str || "").replace(/[&<>"'`\/]/g, function (s) {
+				return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;", "/": "&#x2F;" })[s];
 			});
 		}
 
@@ -259,31 +260,37 @@
 					var unreadClass = Number(msg.is_read) === 0 ? ' message-inline-item-unread' : '';
 					var fromUser = escapeHtml(msg.from_user_name || "未知用户");
 					var articleTitle = escapeHtml(msg.article_title || "文章已删除");
-					html += `<a class="message-inline-item${unreadClass} inline-jump-btn" data-id="${msg.id}" href="{{baseUrl | safe}}article/${msg.article_id}#comment-${msg.comment_id}">
+					var msgId = encodeURIComponent(String(msg.id || ""));
+					var articleId = encodeURIComponent(String(msg.article_id || ""));
+					var commentId = encodeURIComponent(String(msg.comment_id || ""));
+					html += `<a class="message-inline-item${unreadClass} inline-jump-btn" data-id="${msgId}" href="${baseUrl}article/${articleId}#comment-${commentId}">
 						<div class="message-inline-title">@${fromUser}</div>
 						<div class="message-inline-text">在《${articleTitle}》提到了你</div>
 					</a>`;
 				});
 			}
-			html += '<a class="message-inline-more" href="{{baseUrl | safe}}messages">查看完整消息历史</a></div>';
+			html += `<a class="message-inline-more" href="${baseUrl}messages">查看完整消息历史</a></div>`;
 			return html;
 		}
 
 		function updateInlineBadge(unreadCount) {
 			var trigger = $(".message-inline-trigger");
+			var safeCount = Number(unreadCount) || 0;
 			trigger.find(".inline-unread-badge").remove();
-			if (Number(unreadCount) > 0) {
-				trigger.append(`<em class="inline-unread-badge">${unreadCount}</em>`);
+			if (safeCount > 0) {
+				trigger.append(`<em class="inline-unread-badge">${safeCount}</em>`);
 			}
 		}
 
 		function refreshMessageSummary() {
-			return $.get(`{{baseUrl | safe}}message/summary`, function (r) {
+			return $.get(`${baseUrl}message/summary`, function (r) {
 				if (r.code === 200) {
 					updateInlineBadge(r.unread_count || 0);
 					$("#messageDialogContent").html(renderInlineMessages(r.recent_messages || []));
 				}
-			}, "JSON");
+			}, "JSON").fail(function () {
+				layer.msg("消息同步失败", { icon: 5 });
+			});
 		}
 
 		//执行一个laypage实例
@@ -345,7 +352,7 @@
 						const link = $(this);
 						const id = link.attr("data-id");
 						const href = link.attr("href");
-						$.post(`{{baseUrl | safe}}message/read/${id}`, {}, function (r) {
+						$.post(`${baseUrl}message/read/${id}`, {}, function (r) {
 							if (r.code === 200) {
 								layer.closeAll();
 								window.location.href = href;
