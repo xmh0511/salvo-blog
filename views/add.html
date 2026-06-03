@@ -13,7 +13,10 @@
 	</script>
 	<link rel="shortcut icon" href="{{baseUrl | safe}}favicon.ico" type="image/x-icon">
 	<link rel="stylesheet" href="{{baseUrl | safe}}public/plug/layui/css/layui.css">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/plug/font-awesome/css/font-awesome.min.css">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/css/global.css">
 	<link rel="stylesheet" href="{{baseUrl | safe}}public/css/layer-theme.css">
+	<link rel="stylesheet" href="{{baseUrl | safe}}public/css/article.css">
 	<link rel="stylesheet" href="{{baseUrl | safe}}public/markdown/css/editormd.min.css">
 	<link rel="stylesheet" href="{{baseUrl | safe}}public/markdown/css/editormd.preview.min.css">
 	<link rel="stylesheet" href="{{baseUrl | safe}}public/css/login.css">
@@ -23,6 +26,7 @@
 </head>
 
 <body>
+	{% include "navbar.html" %}
 	<div class="container">
 		<div class="create-context">
 			<div class="article-title">
@@ -115,6 +119,22 @@
 			}, "JSON");
 		})
 	});
+	$(".article-message-trigger")
+		.off("click")
+		.on("click", function (e) {
+			e.stopPropagation();
+			$(".article-message-panel").toggleClass("layui-hide");
+		});
+	$(".article-message-panel")
+		.off("click")
+		.on("click", function (e) {
+			e.stopPropagation();
+		});
+	$(document)
+		.off("click.articleMessage")
+		.on("click.articleMessage", function () {
+			$(".article-message-panel").addClass("layui-hide");
+		});
 	// $(function(){
 	// 	setTimeout(()=>{
 	// 		let resizeEvent = document.createEvent('Event')
@@ -128,7 +148,7 @@
 		width: 100%;
 		min-height: 100vh;
 		background-color: rgba(0, 0, 0, .2);
-		padding-top: 10px;
+		padding-top: 74px;
 		box-sizing: border-box;
 	}
 	#content{
