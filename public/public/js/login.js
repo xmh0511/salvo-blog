@@ -34,7 +34,19 @@ layui.use(["jquery", "layer", "form"], function () {
             } else {
               document.cookie = `token=${res.token};Path=${res.baseUrl}`;
             }
-            location.replace(`${window.baseUrl}home/1`);
+            var defaultRedirect = `${window.baseUrl}home/1`;
+            var redirectTarget =
+              typeof window.loginSuccessRedirect === "string"
+                ? window.loginSuccessRedirect.trim()
+                : "";
+            if (
+              !redirectTarget ||
+              !redirectTarget.startsWith("/") ||
+              redirectTarget.startsWith("//")
+            ) {
+              redirectTarget = defaultRedirect;
+            }
+            location.replace(redirectTarget);
           });
         } else {
           layer.closeAll("loading");
