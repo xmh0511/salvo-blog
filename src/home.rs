@@ -1079,7 +1079,7 @@ pub async fn read_article(
                         "currentId"=>current_id,
                         "unread_count"=>unread_count,
                         "recent_messages"=>recent_messages,
-                        "current_user_name"=>person.name.clone().unwrap_or_default()
+                        "current_user_name"=>person.name.unwrap_or_default()
                     ];
                     let r = tera.render("article.html", &context)?;
                     res.render(Text::Html(r));
@@ -1109,7 +1109,7 @@ pub async fn read_article(
                     "currentId"=>current_id,
                     "unread_count"=>unread_count,
                     "recent_messages"=>recent_messages,
-                    "current_user_name"=>person.name.clone().unwrap_or_default()
+                    "current_user_name"=>person.name.unwrap_or_default()
                 ];
                 let r = tera.render("article.html", &context)?;
                 res.render(Text::Html(r));
