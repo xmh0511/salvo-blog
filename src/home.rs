@@ -1013,13 +1013,32 @@ WHERE
     Ok(r)
 }
 
-async fn increase_view_count(article_id: i32, db: &DatabaseConnection) -> Result<(), UniformError> {
+async fn increase_view_count(article_id: i32,real_client_ip:Option<String>, db: &DatabaseConnection) -> Result<(), UniformError> {
     let mut model = view_tb::ActiveModel::new();
     model.article_id = ActiveValue::set(Some(article_id));
     let now = ActiveValue::set(Some(get_current_time()));
     model.create_time = now.clone();
+    model.ip = ActiveValue::set(real_client_ip);
     model.insert(db).await?;
     Ok(())
+}
+
+async fn get_real_client_ip(req: &mut Request)->Option<String>{
+    if let Some(v) = req.header::<String>("x-forwarded-for"){
+        if let Some((v,_)) = v.split_once(","){
+            return Some(v.trim().to_string());
+        }else{
+            return Some(v);
+        }
+    }else{
+        if let Some(v) = req.header::<String>("x-real-ip"){
+            return Some(v);
+        }
+        if let Some(v) = req.remote_addr().ip(){
+            return Some(v.to_string());
+        }
+        return None;
+    }
 }
 
 #[handler]
@@ -1029,6 +1048,8 @@ pub async fn read_article(
     depot: &mut Depot,
 ) -> Result<(), UniformError> {
     let article_id: i32 = req.param("id").to_result()?;
+
+    let real_client_ip = get_real_client_ip(req).await;
 
     let db = get_db()?;
 
@@ -1089,7 +1110,7 @@ pub async fn read_article(
                     res.render(Text::Html(r));
                 }
             } else if need_level <= person.privilege.unwrap_or(1) as u64 {
-                increase_view_count(article_id, db).await?;
+                increase_view_count(article_id,real_client_ip, db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
                 let unread_count =
                     get_unread_message_count::<RESPONSE_TEXT_FOR_ERROR>(current_id as i32, db)
@@ -1125,7 +1146,7 @@ pub async fn read_article(
                 let r = tera.render("404.html", &context)?;
                 res.render(Text::Html(r));
             } else if need_level <= 1 {
-                increase_view_count(article_id, db).await?;
+                increase_view_count(article_id,real_client_ip, db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
                 let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None,"unread_count"=>0,"recent_messages"=>Vec::<JsonValue>::new()];
                 let r = tera.render("article.html", &context)?;
@@ -1142,7 +1163,7 @@ pub async fn read_article(
                 let r = tera.render("404.html", &context)?;
                 res.render(Text::Html(r));
             } else if need_level <= 1 {
-                increase_view_count(article_id, db).await?;
+                increase_view_count(article_id, real_client_ip,db).await?;
                 let comments = get_comments_from_article_id(article_id, db).await?;
                 let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>Option::<i32>::None,"unread_count"=>0,"recent_messages"=>Vec::<JsonValue>::new()];
                 let r = tera.render("article.html", &context)?;
