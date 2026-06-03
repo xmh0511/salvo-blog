@@ -121,22 +121,6 @@
 			}, "JSON");
 		})
 	});
-	$(".article-message-trigger")
-		.off("click")
-		.on("click", function (e) {
-			e.stopPropagation();
-			$(".article-message-panel").toggleClass("layui-hide");
-		});
-	$(".article-message-panel")
-		.off("click")
-		.on("click", function (e) {
-			e.stopPropagation();
-		});
-	$(document)
-		.off("click.articleMessage")
-		.on("click.articleMessage", function () {
-			$(".article-message-panel").addClass("layui-hide");
-		});
 	$(function(){
 		setTimeout(()=>{
 			let resizeEvent = document.createEvent('Event')
@@ -145,6 +129,7 @@
 		},20);
 	});
 </script>
+{% include "navbar_message_script.html" %}
 <style>
 	.container {
 		width: 100%;

@@ -1072,7 +1072,15 @@ pub async fn read_article(
                     )
                     .await
                     .unwrap_or_default();
-                    let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>current_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages,"current_user_name"=>person.name.clone().unwrap_or_default()];
+                    let context = construct_context![
+                        "info"=>article_model,
+                        "comments"=>comments,
+                        "baseUrl"=>base_url,
+                        "currentId"=>current_id,
+                        "unread_count"=>unread_count,
+                        "recent_messages"=>recent_messages,
+                        "current_user_name"=>person.name.clone().unwrap_or_default()
+                    ];
                     let r = tera.render("article.html", &context)?;
                     res.render(Text::Html(r));
                 } else {
@@ -1094,7 +1102,15 @@ pub async fn read_article(
                 )
                 .await
                 .unwrap_or_default();
-                let context = construct_context!["info"=>article_model,"comments"=>comments,"baseUrl"=>base_url,"currentId"=>current_id,"unread_count"=>unread_count,"recent_messages"=>recent_messages,"current_user_name"=>person.name.clone().unwrap_or_default()];
+                let context = construct_context![
+                    "info"=>article_model,
+                    "comments"=>comments,
+                    "baseUrl"=>base_url,
+                    "currentId"=>current_id,
+                    "unread_count"=>unread_count,
+                    "recent_messages"=>recent_messages,
+                    "current_user_name"=>person.name.clone().unwrap_or_default()
+                ];
                 let r = tera.render("article.html", &context)?;
                 res.render(Text::Html(r));
             } else {
