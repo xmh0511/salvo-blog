@@ -23,24 +23,10 @@
 	<script type="text/javascript" src="{{baseUrl | safe}}public/js/jquery-3.6.0.min.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/plug/layui/layui.js"></script>
 	<script type="text/javascript" src="{{baseUrl | safe}}public/markdown/editormd.min.js"></script>
-	<script type="text/javascript" src="{{baseUrl | safe}}public/js/message-poll.js"></script>
 </head>
 
 <body>
-<<<<<<< HEAD
-	<div class="editor-topbar">
-		<a href="{{baseUrl | safe}}home/1" class="layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
-			<i class="fa fa-home"></i> 主页
-		</a>
-		<button type="button" class="message-inline-trigger layui-btn layui-btn-primary layui-border-blue layui-btn-xs">
-			<i class="fa fa-envelope-o"></i>
-			<span>站内信</span>
-		</button>
-		<div id="messageDialogContent" style="display:none;"></div>
-	</div>
-=======
 	{% include "navbar.html" %}
->>>>>>> origin/main
 	<div class="container">
 		<div class="create-context">
 			<div class="article-title">
@@ -111,8 +97,6 @@
 	layui.use('layer', function () {
 		var layer = layui.layer;
 
-		MessagePoll.initInlineMessagePoll(layer);
-
 		$("#postButton").off("click").on("click", function () {
 			const title = $("#articleTitle").val();
 			const tag = $("#selectTag").val();
@@ -145,19 +129,6 @@
 </script>
 {% include "navbar_message_script.html" %}
 <style>
-	.editor-topbar {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 8px 12px;
-		background: rgba(255, 255, 255, 0.08);
-	}
-	.editor-topbar .message-inline-trigger {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		position: relative;
-	}
 	.container {
 		width: 100%;
 		min-height: 100vh;
