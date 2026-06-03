@@ -432,6 +432,9 @@
             }
 
             function bindArticleInlineJump() {
+                const normalizePath = function (pathname) {
+                    return String(pathname || "").replace(/\/+$/, "");
+                };
                 $(".article-inline-jump")
                     .off("click")
                     .on("click", function (e) {
@@ -444,7 +447,16 @@
                             {},
                             function (r) {
                                 if (r.code === 200) {
-                                    window.location.href = href;
+                                    const targetUrl = new URL(href, window.location.origin);
+                                    const currentUrl = new URL(window.location.href);
+                                    const targetPath = normalizePath(targetUrl.pathname);
+                                    const currentPath = normalizePath(currentUrl.pathname);
+                                    if (targetPath === currentPath) {
+                                        window.history.replaceState(null, "", targetUrl.toString());
+                                        window.location.reload();
+                                    } else {
+                                        window.location.href = href;
+                                    }
                                 } else {
                                     layer.msg(r.msg || "标记已读失败", { icon: 5 });
                                 }
