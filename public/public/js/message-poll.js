@@ -68,7 +68,7 @@
 				type: 1,
 				title: "站内信",
 				closeBtn: 1,
-				area: ["360px", "auto"],
+				area: ["360px", "400px"],
 				content: $("#messageDialogContent").html(),
 				success: function (layero) {
 					layero.find(".inline-jump-btn").off("click.inlineJump").on("click.inlineJump", function (e) {
