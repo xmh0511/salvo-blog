@@ -1,7 +1,7 @@
 ﻿/*
 
-@Name：不落阁整站模板源码 
-@Author：Absolutely 
+@Name：不落阁整站模板源码
+@Author：Absolutely
 @Site：http://www.lyblogs.cn
 
 */
@@ -33,7 +33,7 @@
         box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         transition: all 0.3s ease;
     }
-    
+
     .blogerinfo-figure img:hover {
         transform: scale(1.05);
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
@@ -238,7 +238,6 @@
     display: inline-flex;
     align-items: center;
     min-height: 34px;
-    padding: 0 12px;
     border-radius: 8px;
     background: #f7f8ff;
 }
