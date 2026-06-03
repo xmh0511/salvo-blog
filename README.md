@@ -126,3 +126,7 @@ cargo run
 ![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview4.png)
 ![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview5.png)
 ![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview6.png)
+![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview7.png)
+![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview8.png)
+![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview9.png)
+![](https://github.com/xmh0511/salvo-blog/blob/main/preview/preview10.png)
