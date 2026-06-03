@@ -86,8 +86,7 @@
 						<div class="clear"></div>
 						<div class="article-footer">
 							<div class="article-meta-left">
-								<span><i class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time | date(format="%Y-%m-%d
-									%H:%M")}}</span>
+								<span><i class="fa fa-clock-o"></i>&nbsp;&nbsp;{{item.update_time | date(format="%Y-%m-%d")}}</span>
 								<span class="article-author"><i class="fa fa-user"></i>&nbsp;&nbsp;{{item.userName}}</span>
 								<span><i class="fa fa-tag"></i>&nbsp;&nbsp;<a>{{item.tagName}}</a></span>
 							</div>
@@ -96,7 +95,7 @@
 								<span class="article-viewinfo"><i
 										class="fa fa-commenting"></i>&nbsp;{{item.commentCount}}</span>
 								<span class="article-viewinfo"><i
-										class="layui-icon layui-icon-diamond"></i>&nbsp;{{item.level}}</span>
+										class="layui-icon layui-icon-diamond"></i>&nbsp;{% if item.level == 1 %}公开{% elif item.level == 999 %}仅自己{% else %}{{item.level}}{% endif %}</span>
 							</div>
 						</div>
 					</div>

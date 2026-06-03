@@ -1517,7 +1517,6 @@ hr {
 	justify-content: space-between;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: 10px;
 }
 
 .article-meta-left,
