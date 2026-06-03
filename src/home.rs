@@ -76,8 +76,8 @@ pub struct JwtClaims {
     pub exp: i64,
 }
 
-const RESPONSE_TEXT_FOR_ERROR: u8 = 1;
-const RESPONSE_JSON_FOR_ERROR: u8 = 2;
+pub const RESPONSE_TEXT_FOR_ERROR: u8 = 1;
+pub const RESPONSE_JSON_FOR_ERROR: u8 = 2;
 
 #[derive(Debug)]
 pub struct UniformError<const ERRORCODE: u8 = 1>(anyhow::Error);
@@ -145,7 +145,7 @@ pub fn get_base_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
         .ok_or_else(|| anyhow::anyhow!("Base URL not initialized").into())
 }
 
-fn get_tera<const E: u8>() -> Result<&'static Tera, UniformError<E>> {
+pub fn get_tera<const E: u8>() -> Result<&'static Tera, UniformError<E>> {
     TERA.get()
         .ok_or_else(|| anyhow::anyhow!("Template engine not initialized").into())
 }

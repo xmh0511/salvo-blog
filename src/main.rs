@@ -13,7 +13,7 @@ use salvo::jwt_auth::{ConstDecoder, CookieFinder};
 //use salvo::logging::Logger;
 // use salvo::rate_limiter::{BasicQuota, FixedGuard, MokaStore, RateLimiter, RemoteIpIssuer};
 
-use home::{JwtClaims, UniformError,get_base_url};
+use home::{JwtClaims, UniformError,get_base_url,get_tera,RESPONSE_TEXT_FOR_ERROR,RESPONSE_JSON_FOR_ERROR};
 use tracing::log;
 
 #[derive(Clone)]
@@ -34,7 +34,7 @@ impl AuthorGuardByMethod {
                 Ok(())
             }
             JwtAuthState::Unauthorized | JwtAuthState::Forbidden => {
-                Self::render_unauthorized_response(req, depot, res)?;
+                Self::render_unauthorized_response(req, depot, res);
                 ctrl.skip_rest();
                 Ok(())
             }
@@ -45,17 +45,17 @@ impl AuthorGuardByMethod {
 impl AuthorGuardByMethod {
     fn render_unauthorized_response(
         req: &Request,
-        depot: &Depot,
+        _depot: &Depot,
         res: &mut Response,
-    ) -> Result<(), UniformError> {
-        let base_url = get_base_url()?;
-
+    ) {
         if req.method() == salvo::http::Method::GET {
-            let tera = depot
-                .get::<Tera>("tera")
-                .map_err(|_| anyhow::anyhow!("failed to acquire tera engine"))?;
+            let base_url = get_base_url::<RESPONSE_TEXT_FOR_ERROR>().unwrap_or("/");
+            let Ok(tera) = get_tera::<RESPONSE_TEXT_FOR_ERROR>() else{
+                res.status_code(StatusCode::BAD_GATEWAY);
+                return;
+            };
             let mut context = Context::new();
-            context.insert("code", &404);
+            context.insert("code", &401);
             context.insert("msg", "没有权限执行此操作");
             context.insert("baseUrl", &base_url);
             let r = tera
@@ -63,8 +63,9 @@ impl AuthorGuardByMethod {
                 .unwrap_or(String::from("error"));
             res.render(Text::Html(r));
         } else if req.method() == salvo::http::Method::POST {
+            let base_url = get_base_url::<RESPONSE_JSON_FOR_ERROR>().unwrap_or("/");
             let r = json!({
-                "code":400,
+                "code":401,
                 "msg":"没有权限执行此操作",
                 "baseUrl":base_url,
                 "success":0,
@@ -72,7 +73,6 @@ impl AuthorGuardByMethod {
             });
             res.render(Text::Json(r.to_string()));
         }
-        Ok(())
     }
 }
 
@@ -102,7 +102,7 @@ impl Handler for Handle404 {
         } else if http_method == salvo::http::Method::POST {
             let base_url = &self.0;
             let r = json!({
-                "code":400,
+                "code":404,
                 "msg":"访问的资源不存在",
                 "baseUrl":base_url,
                 "success":0,
