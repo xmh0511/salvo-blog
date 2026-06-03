@@ -138,7 +138,7 @@ fn get_db<const E: u8>() -> Result<&'static DatabaseConnection, UniformError<E>>
         .ok_or_else(|| anyhow::anyhow!("Database connection not initialized").into())
 }
 
-fn get_base_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
+pub fn get_base_url<const E: u8>() -> Result<&'static str, UniformError<E>> {
     BASE_URL
         .get()
         .map(|s| s.as_str())

@@ -13,7 +13,7 @@ use salvo::jwt_auth::{ConstDecoder, CookieFinder};
 //use salvo::logging::Logger;
 // use salvo::rate_limiter::{BasicQuota, FixedGuard, MokaStore, RateLimiter, RemoteIpIssuer};
 
-use home::{JwtClaims, UniformError};
+use home::{JwtClaims, UniformError,get_base_url};
 use tracing::log;
 
 #[derive(Clone)]
@@ -48,9 +48,7 @@ impl AuthorGuardByMethod {
         depot: &Depot,
         res: &mut Response,
     ) -> Result<(), UniformError> {
-        let base_url = depot
-            .get::<String>("base_url")
-            .map_err(|_| anyhow::anyhow!("failed to acquire base url"))?;
+        let base_url = get_base_url()?;
 
         if req.method() == salvo::http::Method::GET {
             let tera = depot

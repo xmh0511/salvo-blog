@@ -196,9 +196,9 @@
 
 /* Loading 样式 */
 .layui-layer-loading .layui-layer-content {
-	background: rgba(255, 255, 255, 0.95) !important;
 	border-radius: 12px !important;
 	padding: 30px !important;
+	background-position: center center !important;
 }
 
 .layui-layer-loading.layui-layer {
