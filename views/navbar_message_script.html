@@ -1,8 +1,26 @@
 <script type="text/javascript">
+	const MESSAGE_POLL_INTERVAL_MS = 10000;
+
 	function escapeHtml(str) {
-		return String(str || "").replace(/[&<>"']/g, function (s) {
-			return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[s];
+		return String(str || "").replace(/[&<>"'`]/g, function (s) {
+			return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" })[s];
 		});
+	}
+
+	function getSafeBaseUrl() {
+		var raw = String(window.baseUrl || "");
+		if (raw.startsWith("/")) {
+			return raw;
+		}
+		if (/^https?:\/\//i.test(raw)) {
+			try {
+				var parsed = new URL(raw);
+				if (parsed.origin === window.location.origin) {
+					return parsed.href;
+				}
+			} catch (_) {}
+		}
+		return "/";
 	}
 
 	function updateArticleMessageBadge(unreadCount) {
@@ -14,7 +32,7 @@
 	}
 
 	function renderArticleMessagePanel(messages) {
-		var baseUrl = window.baseUrl || "";
+		var baseUrl = getSafeBaseUrl();
 		var items = messages || [];
 		var html = '<div class="article-message-header">站内信</div>';
 		if (items.length === 0) {
@@ -26,25 +44,29 @@
 				var articleTitle = escapeHtml(msg.article_title || "文章已删除");
 				var articleId = encodeURIComponent(String(msg.article_id || ""));
 				var commentId = encodeURIComponent(String(msg.comment_id || ""));
-				html += '<a class="article-message-item' + unreadClass + ' article-inline-jump" data-id="' + encodeURIComponent(String(msg.id || "")) + '" href="' + baseUrl + 'article/' + articleId + '#comment-' + commentId + '">';
+				var articleHref = baseUrl + 'article/' + articleId + '#comment-' + commentId;
+				var messageId = escapeHtml(String(msg.id || ""));
+				html += '<a class="article-message-item' + unreadClass + ' article-inline-jump" data-id="' + messageId + '" href="' + escapeHtml(articleHref) + '">';
 				html += '<div class="article-message-from">@' + fromUser + '</div>';
 				html += '<div class="article-message-text">在《' + articleTitle + '》提到了你</div>';
 				html += '</a>';
 			});
 		}
-		html += '<a class="article-message-more" href="' + baseUrl + 'messages">查看完整历史</a>';
+		html += '<a class="article-message-more" href="' + escapeHtml(baseUrl + 'messages') + '">查看完整历史</a>';
 		$(".article-message-panel").html(html);
 	}
 
 	function refreshMessageSummary() {
-		var baseUrl = window.baseUrl || "";
+		var baseUrl = getSafeBaseUrl();
 		return $.get(baseUrl + "message/summary", function (r) {
 			if (r.code === 200) {
 				updateArticleMessageBadge(r.unread_count || 0);
 				renderArticleMessagePanel(r.recent_messages || []);
 			}
 		}, "JSON").fail(function () {
-			// silent fail
+			if (window.console && typeof window.console.error === "function") {
+				window.console.error("Failed to fetch message summary");
+			}
 		});
 	}
 
@@ -66,12 +88,40 @@
 		});
 
 	if ($(".article-message-trigger").length > 0) {
-		refreshMessageSummary();
-		var messagePollTimer = setInterval(refreshMessageSummary, 10000);
-		$(window).off("beforeunload.articleMessagePoll").on("beforeunload.articleMessagePoll", function () {
-			if (messagePollTimer) {
-				clearInterval(messagePollTimer);
+		var messagePollTimer = null;
+		var isPolling = false;
+		var startArticleMessagePoll = function () {
+			if (isPolling) {
+				return;
 			}
-		});
+			messagePollTimer = setInterval(refreshMessageSummary, MESSAGE_POLL_INTERVAL_MS);
+			isPolling = true;
+		};
+		var stopArticleMessagePoll = function () {
+			if (!isPolling || !messagePollTimer) {
+				return;
+			}
+			clearInterval(messagePollTimer);
+			messagePollTimer = null;
+			isPolling = false;
+		};
+		refreshMessageSummary();
+		startArticleMessagePoll();
+		var pausePollByVisibility = function () {
+			if (document.hidden) {
+				stopArticleMessagePoll();
+				return;
+			}
+			refreshMessageSummary();
+			startArticleMessagePoll();
+		};
+		$(window)
+			.off("beforeunload.articleMessagePoll")
+			.on("beforeunload.articleMessagePoll", stopArticleMessagePoll)
+			.off("pagehide.articleMessagePoll")
+			.on("pagehide.articleMessagePoll", stopArticleMessagePoll);
+		$(document)
+			.off("visibilitychange.articleMessagePoll")
+			.on("visibilitychange.articleMessagePoll", pausePollByVisibility);
 	}
 </script>
