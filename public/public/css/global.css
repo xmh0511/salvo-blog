@@ -1575,3 +1575,54 @@ hr {
 	color: white !important;
 	transform: translateY(-2px);
 }
+
+/* Inline message badge — shared across all pages */
+.inline-unread-badge {
+	background: #ff4d4f;
+	color: #fff;
+	font-style: normal;
+	border-radius: 999px;
+	min-width: 20px;
+	line-height: 20px;
+	font-size: 12px;
+	padding: 0 6px;
+}
+
+/* Message dialog body and item styles — used by the layer popup on all pages */
+.message-dialog-body {
+	min-width: 280px;
+}
+
+.message-inline-item {
+	display: block;
+	padding: 10px 12px;
+	border-bottom: 1px solid #f5f5f5;
+}
+
+.message-inline-item-unread {
+	background: #f6fbff;
+	border-left: 3px solid #ff4d4f;
+}
+
+.message-inline-title {
+	color: #1E9FFF;
+	font-weight: 600;
+}
+
+.message-inline-text {
+	color: #666;
+	margin-top: 2px;
+	font-size: 13px;
+}
+
+.message-inline-empty {
+	padding: 14px 12px;
+	color: #999;
+}
+
+.message-inline-more {
+	display: block;
+	text-align: center;
+	padding: 10px;
+	color: #1E9FFF;
+}

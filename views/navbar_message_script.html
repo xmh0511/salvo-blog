@@ -1,4 +1,103 @@
 <script type="text/javascript">
+	const MESSAGE_POLL_INTERVAL_MS = 10000;
+
+	function escapeHtml(str) {
+		return String(str || "").replace(/[&<>"'`]/g, function (s) {
+			return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;" })[s];
+		});
+	}
+
+	function getSafeBaseUrl() {
+		var raw = String(window.baseUrl || "");
+		if (raw.startsWith("/")) {
+			return raw;
+		}
+		if (/^https?:\/\//i.test(raw)) {
+			try {
+				var parsed = new URL(raw);
+				if (parsed.origin === window.location.origin) {
+					return parsed.href;
+				}
+			} catch (_) {}
+		}
+		return "/";
+	}
+
+	function updateArticleMessageBadge(unreadCount) {
+		var trigger = $(".article-message-trigger");
+		trigger.find(".article-message-badge").remove();
+		if (Number(unreadCount) > 0) {
+			trigger.append('<em class="article-message-badge">' + Number(unreadCount) + '</em>');
+		}
+	}
+
+	function bindArticleInlineJump() {
+		var baseUrl = getSafeBaseUrl();
+		$(".article-inline-jump")
+			.off("click.articleInlineJump")
+			.on("click.articleInlineJump", function (e) {
+				e.preventDefault();
+				var link = $(this);
+				var href = link.attr("href");
+				var messageId = link.attr("data-id");
+				if (!messageId) {
+					window.location.href = href;
+					return;
+				}
+				$.post(baseUrl + "message/read/" + encodeURIComponent(String(messageId)), {}, function (r) {
+					if (r.code === 200) {
+						window.location.href = href;
+					} else if (window.layui && layui.layer) {
+						layui.layer.msg(r.msg || "标记已读失败", { icon: 5 });
+					}
+				}, "JSON").fail(function () {
+					if (window.layui && layui.layer) {
+						layui.layer.msg("网络错误，未能标记已读", { icon: 5 });
+					}
+				});
+			});
+	}
+
+	function renderArticleMessagePanel(messages) {
+		var baseUrl = getSafeBaseUrl();
+		var items = messages || [];
+		var html = '<div class="article-message-header">站内信</div>';
+		if (items.length === 0) {
+			html += '<div class="article-message-empty">暂无消息</div>';
+		} else {
+			items.forEach(function (msg) {
+				var unreadClass = Number(msg.is_read) === 0 ? " article-message-item-unread" : "";
+				var fromUser = escapeHtml(msg.from_user_name || "未知用户");
+				var articleTitle = escapeHtml(msg.article_title || "文章已删除");
+				var articleId = encodeURIComponent(String(msg.article_id || ""));
+				var commentId = encodeURIComponent(String(msg.comment_id || ""));
+				var articleHref = baseUrl + 'article/' + articleId + '#comment-' + commentId;
+				var messageId = escapeHtml(String(msg.id || ""));
+				html += '<a class="article-message-item' + unreadClass + ' article-inline-jump" data-id="' + messageId + '" href="' + escapeHtml(articleHref) + '">';
+				html += '<div class="article-message-from">@' + fromUser + '</div>';
+				html += '<div class="article-message-text">在《' + articleTitle + '》提到了你</div>';
+				html += '</a>';
+			});
+		}
+		html += '<a class="article-message-more" href="' + escapeHtml(baseUrl + 'messages') + '">查看完整历史</a>';
+		$(".article-message-panel").html(html);
+		bindArticleInlineJump();
+	}
+
+	function refreshMessageSummary() {
+		var baseUrl = getSafeBaseUrl();
+		return $.get(baseUrl + "message/summary", function (r) {
+			if (r.code === 200) {
+				updateArticleMessageBadge(r.unread_count || 0);
+				renderArticleMessagePanel(r.recent_messages || []);
+			}
+		}, "JSON").fail(function () {
+			if (window.console && typeof window.console.error === "function") {
+				window.console.error("Failed to fetch message summary");
+			}
+		});
+	}
+
 	$(".article-message-trigger")
 		.off("click")
 		.on("click", function (e) {
@@ -15,4 +114,43 @@
 		.on("click.articleMessage", function () {
 			$(".article-message-panel").addClass("layui-hide");
 		});
+	bindArticleInlineJump();
+
+	if ($(".article-message-trigger").length > 0) {
+		var messagePollTimer = null;
+		var isPolling = false;
+		var startArticleMessagePoll = function () {
+			if (isPolling) {
+				return;
+			}
+			messagePollTimer = setInterval(refreshMessageSummary, MESSAGE_POLL_INTERVAL_MS);
+			isPolling = true;
+		};
+		var stopArticleMessagePoll = function () {
+			if (!isPolling || !messagePollTimer) {
+				return;
+			}
+			clearInterval(messagePollTimer);
+			messagePollTimer = null;
+			isPolling = false;
+		};
+		refreshMessageSummary();
+		startArticleMessagePoll();
+		var pausePollByVisibility = function () {
+			if (document.hidden) {
+				stopArticleMessagePoll();
+				return;
+			}
+			refreshMessageSummary();
+			startArticleMessagePoll();
+		};
+		$(window)
+			.off("beforeunload.articleMessagePoll")
+			.on("beforeunload.articleMessagePoll", stopArticleMessagePoll)
+			.off("pagehide.articleMessagePoll")
+			.on("pagehide.articleMessagePoll", stopArticleMessagePoll);
+		$(document)
+			.off("visibilitychange.articleMessagePoll")
+			.on("visibilitychange.articleMessagePoll", pausePollByVisibility);
+	}
 </script>
