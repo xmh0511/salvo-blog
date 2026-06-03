@@ -444,7 +444,16 @@
                             {},
                             function (r) {
                                 if (r.code === 200) {
-                                    window.location.href = href;
+                                    const targetUrl = new URL(href, window.location.origin);
+                                    const currentUrl = new URL(window.location.href);
+                                    const targetPath = targetUrl.pathname.replace(/\/+$/, "");
+                                    const currentPath = currentUrl.pathname.replace(/\/+$/, "");
+                                    if (targetPath === currentPath) {
+                                        window.location.href = targetUrl.pathname + targetUrl.search + targetUrl.hash;
+                                        window.location.reload();
+                                    } else {
+                                        window.location.href = href;
+                                    }
                                 } else {
                                     layer.msg(r.msg || "标记已读失败", { icon: 5 });
                                 }
