@@ -129,6 +129,13 @@
 </script>
 {% include "navbar_message_script.html" %}
 <style>
+	body {
+		display: block;
+		padding: 0;
+	}
+	body::before {
+		display: none;
+	}
 	.container {
 		width: 100%;
 		min-height: 100vh;
